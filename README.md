@@ -16,11 +16,11 @@ Watch the real-time transformation from source video to WebGPU-accelerated ASCII
 
 | Original Media | ASCILINE Output |
 | :---: | :---: |
-| <img src="https://placehold.co/600x338/141419/00f3ff.png?text=Original+Video+Frame" width="100%" alt="Original Frame"/> | <img src="https://placehold.co/600x338/141419/39ff14.png?text=ASCILINE+Rendered+Output" width="100%" alt="ASCII Output"/> |
+| <img src="assets/demo-input.jpg" width="100%" alt="Original Frame"/> | <img src="assets/demo-output.jpg" width="100%" alt="ASCII Output"/> |
 
 <br>
 
-*(Note: You can easily replace the placeholder images by editing this README on GitHub, dragging and dropping your own screenshots into the editor, and pasting the generated links into the `src="..."` tags above!)*
+*(Note: These are high-fidelity mockups of the ASCILINE engine in action.)*
 
 ---
 
@@ -29,8 +29,7 @@ Watch the real-time transformation from source video to WebGPU-accelerated ASCII
 ASCILINE features a fully integrated, professional-grade dark mode interface built for high-performance GPU media workflows.
 
 <div align="center">
-  <!-- Replace with your actual UI screenshot URL -->
-  <img src="https://placehold.co/1200x675/0a0a0c/00f3ff.png?text=ASCILINE+Frontend+UI+Screenshot" width="100%" alt="ASCILINE UI"/>
+  <img src="assets/demo-ui.jpg" width="100%" alt="ASCILINE UI"/>
 </div>
 
 - **Drag-and-Drop Local Media**: Instantly render local files.
