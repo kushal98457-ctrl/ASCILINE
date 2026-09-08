@@ -29,7 +29,7 @@ Watch the real-time transformation from source video to WebGPU-accelerated ASCII
 ASCILINE features a fully integrated, professional-grade dark mode interface built for high-performance GPU media workflows.
 
 <div align="center">
-  <img src="assets/demo-ui.jpg" width="100%" alt="ASCILINE UI"/>
+  <img src="assets/demo-ui.png" width="100%" alt="ASCILINE UI"/>
 </div>
 
 - **Drag-and-Drop Local Media**: Instantly render local files.
