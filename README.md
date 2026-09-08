@@ -10,6 +10,34 @@ Instead of relying on the browser's traditional `<video>` pipeline, ASCILINE dec
 
 ---
 
+## 🎬 Demo (Original vs ASCILINE Output)
+
+Watch the real-time transformation from source video to WebGPU-accelerated ASCII rendering.
+
+<div align="center">
+  <table style="width: 100%; border: none;">
+    <tr>
+      <td align="center"><b>Original Video</b></td>
+      <td align="center"><b>ASCILINE Output</b></td>
+    </tr>
+    <tr>
+      <td align="center">
+        <!-- Replace with your actual original video URL or file -->
+        <video src="https://github.com/user-attachments/assets/original-demo.mp4" width="100%" controls autoplay loop muted></video>
+      </td>
+      <td align="center">
+        <!-- Replace with your actual ASCILINE output video URL or file -->
+        <video src="https://github.com/user-attachments/assets/asciline-output.mp4" width="100%" controls autoplay loop muted></video>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+
+*(Note: To display actual videos in GitHub, drag and drop your `.mp4` files into the GitHub editor while editing this README to generate the `github.com/user-attachments/...` links, then replace the placeholder links above!)*
+
+---
+
 ## ✨ Highlights
 
 * 🎬 **Real-time ASCII video rendering**
