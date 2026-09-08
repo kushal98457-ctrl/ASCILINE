@@ -17,24 +17,41 @@ Watch the real-time transformation from source video to WebGPU-accelerated ASCII
 <div align="center">
   <table style="width: 100%; border: none;">
     <tr>
-      <td align="center"><b>Original Video</b></td>
+      <td align="center"><b>Original Media</b></td>
       <td align="center"><b>ASCILINE Output</b></td>
     </tr>
     <tr>
       <td align="center">
-        <!-- Replace with your actual original video URL or file -->
-        <video src="https://github.com/user-attachments/assets/original-demo.mp4" width="100%" controls autoplay loop muted></video>
+        <!-- Replace with your actual original image URL -->
+        <img src="https://via.placeholder.com/600x338/141419/00f3ff?text=Original+Video+Frame" width="100%" alt="Original Frame"/>
       </td>
       <td align="center">
-        <!-- Replace with your actual ASCILINE output video URL or file -->
-        <video src="https://github.com/user-attachments/assets/asciline-output.mp4" width="100%" controls autoplay loop muted></video>
+        <!-- Replace with your actual ASCILINE output image URL -->
+        <img src="https://via.placeholder.com/600x338/141419/39ff14?text=ASCILINE+Rendered+Output" width="100%" alt="ASCII Output"/>
       </td>
     </tr>
   </table>
 </div>
 <br>
 
-*(Note: To display actual videos in GitHub, drag and drop your `.mp4` files into the GitHub editor while editing this README to generate the `github.com/user-attachments/...` links, then replace the placeholder links above!)*
+*(Note: You can easily replace the placeholder images by editing this README on GitHub, dragging and dropping your own screenshots into the editor, and pasting the generated links into the `src="..."` tags above!)*
+
+---
+
+## 🖥️ Premium Desktop Workstation UI
+
+ASCILINE features a fully integrated, professional-grade dark mode interface built for high-performance GPU media workflows.
+
+<div align="center">
+  <!-- Replace with your actual UI screenshot URL -->
+  <img src="https://via.placeholder.com/1200x675/0a0a0c/00f3ff?text=ASCILINE+Frontend+UI+Screenshot" width="100%" alt="ASCILINE UI"/>
+</div>
+
+- **Drag-and-Drop Local Media**: Instantly render local files.
+- **Live Stream Connection**: Connect to network streams or webcam inputs.
+- **Hardware-Accelerated WebGPU/WebGL2 Rendering**: Smooth 60FPS playback.
+- **Real-Time HUD**: Latency, queue depth, and frametime overlay.
+- **Dynamic Filter Controls**: Contrast, gamma, palettes, and edge detection.
 
 ---
 
