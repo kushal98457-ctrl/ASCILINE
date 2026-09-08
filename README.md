@@ -14,24 +14,10 @@ Instead of relying on the browser's traditional `<video>` pipeline, ASCILINE dec
 
 Watch the real-time transformation from source video to WebGPU-accelerated ASCII rendering.
 
-<div align="center">
-  <table style="width: 100%; border: none;">
-    <tr>
-      <td align="center"><b>Original Media</b></td>
-      <td align="center"><b>ASCILINE Output</b></td>
-    </tr>
-    <tr>
-      <td align="center">
-        <!-- Replace with your actual original image URL -->
-        <img src="https://via.placeholder.com/600x338/141419/00f3ff?text=Original+Video+Frame" width="100%" alt="Original Frame"/>
-      </td>
-      <td align="center">
-        <!-- Replace with your actual ASCILINE output image URL -->
-        <img src="https://via.placeholder.com/600x338/141419/39ff14?text=ASCILINE+Rendered+Output" width="100%" alt="ASCII Output"/>
-      </td>
-    </tr>
-  </table>
-</div>
+| Original Media | ASCILINE Output |
+| :---: | :---: |
+| <img src="https://placehold.co/600x338/141419/00f3ff.png?text=Original+Video+Frame" width="100%" alt="Original Frame"/> | <img src="https://placehold.co/600x338/141419/39ff14.png?text=ASCILINE+Rendered+Output" width="100%" alt="ASCII Output"/> |
+
 <br>
 
 *(Note: You can easily replace the placeholder images by editing this README on GitHub, dragging and dropping your own screenshots into the editor, and pasting the generated links into the `src="..."` tags above!)*
@@ -44,7 +30,7 @@ ASCILINE features a fully integrated, professional-grade dark mode interface bui
 
 <div align="center">
   <!-- Replace with your actual UI screenshot URL -->
-  <img src="https://via.placeholder.com/1200x675/0a0a0c/00f3ff?text=ASCILINE+Frontend+UI+Screenshot" width="100%" alt="ASCILINE UI"/>
+  <img src="https://placehold.co/1200x675/0a0a0c/00f3ff.png?text=ASCILINE+Frontend+UI+Screenshot" width="100%" alt="ASCILINE UI"/>
 </div>
 
 - **Drag-and-Drop Local Media**: Instantly render local files.
