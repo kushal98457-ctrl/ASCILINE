@@ -252,6 +252,8 @@ async def upload_video(file: UploadFile = File(...)):
     print(f"[UPLOAD] saved {file.filename} -> {dest_path} ({bytes_written} bytes), queued at index {new_index}")
     return {"queued_index": new_index, "filename": file.filename}
 
+app.mount("/assets", StaticFiles(directory=os.path.join(BASE_DIR, "frontend-v2", "dist", "assets")), name="assets")
+
 @app.get("/static/{filename}")
 async def serve_static(filename: str):
     if filename not in STATIC_WHITELIST:
@@ -259,6 +261,15 @@ async def serve_static(filename: str):
         raise HTTPException(status_code=404, detail="Not found")
     filepath = os.path.join(BASE_DIR, filename)
     return FileResponse(filepath)
+
+@app.get("/")
+async def root():
+    """Serves the Production Frontend-v2 UI to the client."""
+    dist_index = os.path.join(BASE_DIR, "frontend-v2", "dist", "index.html")
+    if os.path.exists(dist_index):
+        with open(dist_index, "r", encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    return HTMLResponse("<h1>Error: frontend-v2/dist/index.html not found. Run npm run build.</h1>")
 
 def get_html_content():
     html_path = os.path.join(os.path.dirname(__file__), "index.html")
