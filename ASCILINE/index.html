@@ -1,619 +1,360 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
-<head>
+
+<html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>ASCILINE — Real-Time ASCII Engine</title>
+<title>ASCILINE GPU Engine</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          "primary-container": "#00f3ff",
-          "secondary-fixed-dim": "#39ff14",
-          "background": "#0a0a0c",
-          "surface": "#121217",
-          "surface-variant": "#1e1e24",
-          "surface-container-low": "#1a1a20",
-          "surface-container-high": "#2a2a2c",
-          "outline-variant": "#333340",
-          "on-surface": "#e5e1e4",
-          "on-surface-variant": "#9090a0",
-          "error-color": "#ff003c",
-        },
-        fontFamily: {
-          mono: ["JetBrains Mono", "Courier New", "monospace"],
-          display: ["Courier Prime", "Courier New", "monospace"],
-        },
-      },
-    },
-  }
-</script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error-container": "#93000a",
+                        "surface-variant": "#353437",
+                        "primary-fixed-dim": "#00dce6",
+                        "primary-container": "#00f3ff",
+                        "on-secondary-container": "#0f6d00",
+                        "on-background": "#e5e1e4",
+                        "on-secondary": "#053900",
+                        "on-tertiary-container": "#5f6061",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "tertiary": "#f8f8f8",
+                        "on-surface": "#e5e1e4",
+                        "tertiary-fixed": "#e2e2e2",
+                        "inverse-primary": "#00696f",
+                        "surface-container-high": "#2a2a2c",
+                        "outline": "#849495",
+                        "secondary-fixed": "#79ff5b",
+                        "on-error": "#690005",
+                        "background": "#131315",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-tertiary": "#2f3131",
+                        "on-primary-fixed": "#002022",
+                        "surface-tint": "#00dce6",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "surface-bright": "#39393b",
+                        "tertiary-container": "#dbdcdc",
+                        "surface-container-lowest": "#0e0e10",
+                        "secondary-container": "#2ff801",
+                        "surface": "#131315",
+                        "on-primary-container": "#006b71",
+                        "surface-container": "#201f21",
+                        "on-secondary-fixed": "#022100",
+                        "on-primary": "#00373a",
+                        "outline-variant": "#3a494b",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#095300",
+                        "on-surface-variant": "#b9cacb",
+                        "inverse-on-surface": "#313032",
+                        "primary": "#e3fdff",
+                        "surface-container-low": "#1c1b1d",
+                        "inverse-surface": "#e5e1e4",
+                        "surface-container-highest": "#353437",
+                        "secondary": "#d7ffc5",
+                        "secondary-fixed-dim": "#2ae500",
+                        "surface-dim": "#131315",
+                        "on-primary-fixed-variant": "#004f53",
+                        "primary-fixed": "#6ff6ff",
+                        "base-layer": "#0a0a0c",
+                        "panel-layer": "#141419",
+                        "active-layer": "#1c1c24",
+                        "border-layer": "#2a2a32"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0px",
+                        "lg": "0px",
+                        "xl": "0px",
+                        "full": "0px"
+                    },
+                    "spacing": {
+                        "container-padding": "16px",
+                        "gutter": "1px",
+                        "unit": "4px",
+                        "panel-gap": "2px"
+                    },
+                    "fontFamily": {
+                        "data-sm": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "data-lg": ["JetBrains Mono"],
+                        "display-lg": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "data-sm": ["12px", { "lineHeight": "1.2", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "data-lg": ["16px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-caps": ["10px", { "lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
 <style>
-  :root {
-    --accent: #00f3ff;
-    --accent2: #39ff14;
-    --bg: #0a0a0c;
-    --surface: #121217;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #0a0a0c; color: #e5e1e4; margin: 0; height: 100vh; overflow: hidden; }
+        .border-tech { border-color: #2a2a32; }
+        .bg-panel { background-color: #141419; }
+        .bg-active { background-color: #1c1c24; }
+        
+        /* Custom Scrollbar for brutalist look */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0c; border-left: 1px solid #2a2a32; }
+        ::-webkit-scrollbar-thumb { background: #2a2a32; }
+        ::-webkit-scrollbar-thumb:hover { background: #00f3ff; }
 
-  body { background: var(--bg); color: var(--accent); font-family: 'JetBrains Mono', 'Courier New', monospace; min-height: 100vh; overflow-x: hidden; }
-
-  /* Neon glow helpers */
-  .glow-cyan { box-shadow: 0 0 15px rgba(0,243,255,0.3), 0 0 2px rgba(0,243,255,0.5) inset; }
-  .glow-text { text-shadow: 0 0 10px rgba(0,243,255,0.7); }
-  .glow-green { text-shadow: 0 0 8px rgba(57,255,20,0.7); }
-
-  /* Scanline overlay effect */
-  #player-container::before {
-    content: '';
-    position: absolute; inset: 0; z-index: 3; pointer-events: none;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-  }
-
-  /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
-
-  /* Range sliders */
-  input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
-  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #333340; border-radius: 1px; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent); margin-top: -5px; box-shadow: 0 0 8px rgba(0,243,255,0.6); }
-  input[type=range]::-moz-range-track { height: 2px; background: #333340; border-radius: 1px; }
-  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; background: var(--accent); border: none; box-shadow: 0 0 8px rgba(0,243,255,0.6); }
-
-  /* Seek played fill */
-  .seek-filled { background: var(--accent2); }
-
-  /* Settings panel */
-  #settings-panel { transition: transform 0.25s ease, opacity 0.25s ease; }
-  #settings-panel.panel-hidden { transform: translateX(110%); opacity: 0; pointer-events: none; }
-
-  /* Pause effect */
-  @keyframes tremble {
-    0%,100% { transform: translate(0,0); }
-    25% { transform: translate(1px,0); }
-    75% { transform: translate(-1px,1px); }
-  }
-  #player-container.paused { filter: saturate(0.3) brightness(0.6); }
-  #player-container.paused #ascii-canvas,
-  #player-container.paused #ascii-player { animation: tremble 0.1s steps(3) infinite; }
-
-  /* Play overlay */
-  #play-overlay { transition: opacity 0.2s ease; }
-  #play-overlay.hidden { display: none; }
-
-  /* Toast */
-  #connection-toast { transition: opacity 0.2s ease; }
-  .toast { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; background: var(--surface); border: 1px solid #333; border-left: 3px solid var(--accent); color: var(--accent); font-size: 12px; padding: 10px 18px; opacity: 0; pointer-events: none; letter-spacing: 1px; }
-  .toast.show { opacity: 1; }
-
-  /* Seek preview */
-  .seek-preview { position: absolute; bottom: 22px; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; pointer-events: none; z-index: 60; }
-  .seek-preview.show { display: flex; }
-  .seek-preview-img { border: 1px solid var(--accent); }
-  .seek-preview-time { margin-top: 3px; font-size: 10px; color: #fff; background: rgba(0,0,0,0.85); padding: 1px 6px; white-space: nowrap; }
-
-  /* Pulse animation for live dot */
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity: 0.3; } }
-  .live-dot { animation: pulse 1.5s ease-in-out infinite; }
-
-  /* Blinking cursor */
-  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
-  .cursor { animation: blink 1s step-end infinite; }
-
-  /* Corner bracket decoration */
-  .bracket-tl::before { content: ''; position: absolute; top: -1px; left: -1px; width: 12px; height: 12px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
-  .bracket-br::after { content: ''; position: absolute; bottom: -1px; right: -1px; width: 12px; height: 12px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
-</style>
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 4px; height: 16px; background: #00f3ff; cursor: pointer; border-radius: 0;
+        }
+        .slider-thumb::-moz-range-thumb {
+            width: 4px; height: 16px; background: #00f3ff; cursor: pointer; border-radius: 0; border: none;
+        }
+    </style>
 </head>
-<body class="flex flex-col min-h-screen">
+<body class="flex flex-col h-screen font-body-md text-body-md antialiased selection:bg-primary-container selection:text-background">
+<!-- TopAppBar -->
+<header class="w-full h-12 border-b border-tech bg-panel flex items-center justify-between px-container-padding flex-shrink-0 relative z-20">
+<div class="flex items-center gap-4">
+<span class="font-data-lg text-data-lg font-bold tracking-tighter text-primary-fixed-dim">ASCILINE GPU Engine</span>
+<span class="font-data-sm text-data-sm text-on-surface-variant border-l border-tech pl-4 py-1">MEDIA_WORKSTATION_PRO</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 font-data-sm text-data-sm">
+<span class="text-on-surface-variant">Renderer:</span>
+<span class="text-secondary-fixed-dim flex items-center gap-1">
+<span class="w-2 h-2 bg-secondary-fixed-dim inline-block shadow-[0_0_8px_#2ae500]"></span>
+                    <span id="status-nav">WebGPU [ACTIVE]</span>
+                </span>
+</div>
+<div class="flex gap-4 border-l border-tech pl-4">
+<button class="text-on-surface-variant hover:text-primary-container transition-colors"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud_upload</span></button>
+<button class="text-on-surface-variant hover:text-primary-container transition-colors"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">monitor_heart</span></button>
+<button class="text-on-surface-variant hover:text-primary-container transition-colors"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span></button>
+</div>
+</div>
+</header>
+<!-- Main Layout -->
+<div class="flex flex-1 overflow-hidden h-[calc(100vh-80px)]">
+<!-- SideNavBar -->
+<aside class="w-[300px] h-full border-r border-tech bg-panel flex flex-col flex-shrink-0 z-10 overflow-y-auto">
+<!-- Navigation Tabs (Shared Component Context) -->
+<div class="flex flex-col border-b border-tech">
+<button class="flex items-center gap-3 px-4 py-2 text-primary-fixed-dim border-l-2 border-primary-fixed-dim bg-active transition-all duration-75 text-left font-data-sm text-data-sm">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+                    Sources
+                </button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant border-l-2 border-transparent hover:bg-surface-variant hover:text-on-surface transition-all duration-75 text-left font-data-sm text-data-sm">
+<span class="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                    Effects
+                </button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant border-l-2 border-transparent hover:bg-surface-variant hover:text-on-surface transition-all duration-75 text-left font-data-sm text-data-sm">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+                    Output
+                </button>
+</div>
+<!-- Media Source Section -->
+<div class="p-4 border-b border-tech">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-3 flex items-center justify-between">
+<span>MEDIA SOURCE</span>
+<span class="material-symbols-outlined text-[14px]">source</span>
+</div>
+<div class="border border-dashed border-tech bg-base-layer p-6 text-center hover:border-primary-container hover:bg-[#131315] transition-all cursor-pointer group mb-4">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary-container mb-2 text-[24px]">upload_file</span>
+<div class="font-data-sm text-data-sm text-on-surface group-hover:text-primary-container">IMPORT MEDIA</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant mt-1">DRAG AND DROP</div>
+</div>
+<div class="space-y-2">
+<div class="flex w-full">
+<input class="w-full bg-base-layer border border-tech text-on-surface font-data-sm text-data-sm px-2 py-1 focus:border-primary-container focus:ring-0 outline-none rounded-none placeholder:text-on-surface-variant" placeholder="Live Stream URL (rtsp://...)" type="text"/>
+</div>
+<button class="w-full border border-tech bg-transparent hover:bg-surface-variant text-on-surface font-data-sm text-data-sm py-1.5 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[14px]">link</span> CONNECT
+                    </button>
+</div>
+</div>
+<!-- Inspector / Render Settings -->
+<div class="p-4 flex-1">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-4 flex items-center justify-between">
+<span>RENDER SETTINGS</span>
+<span class="material-symbols-outlined text-[14px]">tune</span>
+</div>
 
-<!-- ══ TOP NAV ═══════════════════════════════════════════════════════════════ -->
-<nav class="flex items-center justify-between px-6 py-3 border-b border-outline-variant bg-surface sticky top-0 z-50">
-  <div class="flex items-center gap-4">
-    <span class="text-xl font-bold glow-text tracking-[0.3em] text-primary-container" style="font-family:'Courier Prime',monospace">ASCILINE</span>
-    <span class="text-xs text-on-surface-variant tracking-widest hidden md:block">REAL-TIME MATRIX SIGNAL DECODING</span>
-  </div>
-  <div class="flex items-center gap-4 text-xs text-on-surface-variant">
-    <span id="status-nav" class="tracking-widest text-primary-container">SYSTEM READY</span>
-    <span class="live-dot w-2 h-2 rounded-full bg-secondary-fixed-dim inline-block"></span>
-    <span class="hidden md:block">[ OPERATOR_01 ]</span>
-  </div>
-</nav>
-
-<!-- ══ MAIN LAYOUT ════════════════════════════════════════════════════════════ -->
-<div class="flex flex-1 overflow-hidden relative">
-
-  <!-- LEFT SIDEBAR (desktop) -->
-  <aside class="hidden lg:flex flex-col w-52 border-r border-outline-variant bg-surface p-4 gap-6 shrink-0">
+<div id="filter-menu">
+<div class="space-y-4 mb-6">
     <div>
-      <p class="text-primary-container text-xs tracking-widest mb-1 glow-text">OPERATOR_01</p>
-      <p class="text-secondary-fixed-dim text-xs glow-green">[ STATUS: CONNECTED ]</p>
+        <div class="flex justify-between font-data-sm text-data-sm mb-1 text-on-surface-variant"><span>Contrast</span><span id="filter-contrast-val" class="text-primary-container">1.0</span></div>
+        <input id="filter-contrast" class="w-full h-[2px] bg-tech appearance-none slider-thumb cursor-pointer" max="3.0" min="0.1" step="0.05" type="range" value="1.0"/>
     </div>
-    <nav class="space-y-1 text-xs">
-      <a href="#" class="flex items-center gap-2 py-2 px-3 text-secondary-fixed-dim border-l-2 border-secondary-fixed-dim bg-surface-container-low tracking-wider">
-        <span class="material-symbols-outlined text-sm">videocam</span> UPLINK
-      </a>
-      <a href="#" class="flex items-center gap-2 py-2 px-3 text-on-surface-variant hover:text-primary-container tracking-wider transition-colors">
-        <span class="material-symbols-outlined text-sm">playlist_play</span> ARCHIVE
-      </a>
-      <a href="#" class="flex items-center gap-2 py-2 px-3 text-on-surface-variant hover:text-primary-container tracking-wider transition-colors">
-        <span class="material-symbols-outlined text-sm">grid_view</span> MATRIX
-      </a>
-      <a href="#" class="flex items-center gap-2 py-2 px-3 text-on-surface-variant hover:text-primary-container tracking-wider transition-colors">
-        <span class="material-symbols-outlined text-sm">code</span> ENCODE
-      </a>
-    </nav>
-    <!-- Terminal mini-log -->
-    <div class="mt-auto border border-outline-variant p-2 text-[10px] text-on-surface-variant space-y-1 overflow-hidden h-28">
-      <p><span class="text-primary-container">&gt;</span> INIT ENGINE...</p>
-      <p><span class="text-primary-container">&gt;</span> CODEC: ADAPTIVE</p>
-      <p><span class="text-primary-container">&gt;</span> WS: READY<span class="cursor">_</span></p>
+    <div>
+        <div class="flex justify-between font-data-sm text-data-sm mb-1 text-on-surface-variant"><span>Gamma</span><span id="filter-gamma-val" class="text-primary-container">1.0</span></div>
+        <input id="filter-gamma" class="w-full h-[2px] bg-tech appearance-none slider-thumb cursor-pointer" max="3.0" min="0.1" step="0.05" type="range" value="1.0"/>
     </div>
-  </aside>
-
-  <!-- ══ CENTER CONTENT ══════════════════════════════════════════════════════ -->
-  <main class="flex-1 flex flex-col gap-4 p-4 overflow-y-auto min-w-0">
-
-    <!-- STATUS BAR -->
-    <div class="flex items-center gap-3 text-xs text-on-surface-variant flex-wrap">
-      <span id="status" class="text-primary-container tracking-widest">SYSTEM READY</span>
-      <span class="hidden md:inline">|</span>
-      <span class="hidden md:inline" id="fps-info">FPS: --</span>
-      <span class="hidden md:inline">|</span>
-      <span class="hidden md:inline" id="mode-info">MODE: --</span>
+    <div>
+        <div class="flex justify-between font-data-sm text-data-sm mb-1 text-on-surface-variant"><span>Brightness</span><span id="filter-brightness-val" class="text-primary-container">0</span></div>
+        <input id="filter-brightness" class="w-full h-[2px] bg-tech appearance-none slider-thumb cursor-pointer" max="100" min="-100" step="1" type="range" value="0"/>
     </div>
+    <div>
+        <div class="flex justify-between font-data-sm text-data-sm mb-1 text-on-surface-variant"><span>Sharpness</span><span id="filter-sharpness-val" class="text-primary-container">0</span></div>
+        <input id="filter-sharpness" class="w-full h-[2px] bg-tech appearance-none slider-thumb cursor-pointer" max="10" min="0" step="1" type="range" value="0"/>
+    </div>
+</div>
+<div class="space-y-3 mb-6">
+    <div class="flex items-center justify-between">
+        <span class="font-data-sm text-data-sm text-on-surface-variant">Pixel Mode</span>
+        <button id="filter-pixel" class="px-2 py-1 text-xs border border-tech text-on-surface-variant hover:text-primary-container">OFF</button>
+    </div>
+    <div class="flex items-center justify-between">
+        <span class="font-data-sm text-data-sm text-on-surface-variant">Invert</span>
+        <button id="filter-invert" class="px-2 py-1 text-xs border border-tech text-on-surface-variant hover:text-primary-container">OFF</button>
+    </div>
+</div>
+</div>
 
-    <!-- PLAYER SECTION -->
-    <div class="flex flex-col gap-2">
+<!-- Dropdowns -->
+<div class="space-y-3 mb-6">
+<div>
+<label class="font-data-sm text-data-sm text-on-surface-variant block mb-1">Character Set</label>
+<div class="relative">
+<select class="w-full bg-base-layer border border-tech text-on-surface font-data-sm text-data-sm px-2 py-1.5 appearance-none focus:border-primary-container focus:ring-0 outline-none rounded-none cursor-pointer">
+<option>Standard ASCII</option>
+<option>Extended (Block Elements)</option>
+<option>Braille Patterns</option>
+<option>Binary (0,1)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[16px]">expand_more</span>
+</div>
+</div>
+<div>
+<label class="font-data-sm text-data-sm text-on-surface-variant block mb-1">Color Mode</label>
+<div class="relative">
+<select class="w-full bg-base-layer border border-tech text-on-surface font-data-sm text-data-sm px-2 py-1.5 appearance-none focus:border-primary-container focus:ring-0 outline-none rounded-none cursor-pointer">
+<option>Source Color</option>
+<option>Monochrome (Green)</option>
+<option>Monochrome (Cyan)</option>
+<option>Grayscale</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[16px]">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Toggles & Buttons -->
+<div class="space-y-3">
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center justify-center w-4 h-4 border border-tech bg-base-layer group-hover:border-primary-container transition-colors">
+<input checked="" class="peer sr-only" type="checkbox"/>
+<div class="w-full h-full bg-primary-container opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+<span class="font-data-sm text-data-sm text-on-surface group-hover:text-primary-container transition-colors">Floyd-Steinberg Dithering</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center justify-center w-4 h-4 border border-tech bg-base-layer group-hover:border-primary-container transition-colors">
+<input class="peer sr-only" type="checkbox"/>
+<div class="w-full h-full bg-primary-container opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+<span class="font-data-sm text-data-sm text-on-surface group-hover:text-primary-container transition-colors">Sobel Edge Detection</span>
+</label>
+</div>
+<button class="w-full mt-6 bg-primary-container text-base-layer font-data-sm text-data-sm font-bold py-2 border border-primary-container hover:bg-primary-fixed transition-colors">
+                    APPLY SETTINGS
+                </button>
+</div>
+</aside>
+<!-- Center Viewport -->
+<main class="flex-1 bg-base-layer relative p-4 flex flex-col items-center justify-center overflow-hidden">
+<!-- HUD Overlay -->
+<div class="absolute top-4 right-4 bg-panel/80 backdrop-blur-sm border border-tech p-2 font-data-sm text-data-sm z-20 pointer-events-none">
+<div class="grid grid-cols-2 gap-x-4 gap-y-1">
+<span class="text-on-surface-variant">FPS (Local):</span>
+<span class="text-secondary-fixed text-right" id="fps-info">60.0</span>
+<span class="text-on-surface-variant">Mode:</span>
+<span class="text-on-surface text-right" id="mode-info">16.7ms</span>
+<span class="text-on-surface-variant">Dropped:</span>
+<span class="text-on-surface text-right">0</span>
+<span class="text-on-surface-variant">Latency:</span>
+<span class="text-on-surface text-right">4ms</span>
+</div>
+<div class="mt-2 pt-2 border-t border-tech">
+<div class="h-4 w-full flex items-end gap-[1px]">
+<!-- Sparkline mock -->
+<div class="w-1 bg-secondary-fixed h-full"></div>
+<div class="w-1 bg-secondary-fixed h-[80%]"></div>
+<div class="w-1 bg-secondary-fixed h-[90%]"></div>
+<div class="w-1 bg-secondary-fixed h-full"></div>
+<div class="w-1 bg-secondary-fixed h-[85%]"></div>
+<div class="w-1 bg-secondary-fixed h-[95%]"></div>
+<div class="w-1 bg-secondary-fixed h-full"></div>
+<div class="w-1 bg-secondary-fixed h-full"></div>
+</div>
+</div>
+</div>
+<!-- Canvas Placeholder -->
 
-      <!-- Player container -->
-      <div id="player-container" class="relative w-full bg-surface glow-cyan border border-outline-variant overflow-hidden bracket-tl bracket-br"
-           style="aspect-ratio: 860/560;">
-
-        <!-- ASCII text layer (B&W + selection) -->
-        <pre id="ascii-player" style="font-family:'Courier New',monospace;white-space:pre;overflow:hidden;font-size:8px;line-height:8px;font-weight:bold;color:transparent;position:absolute;top:0;left:0;z-index:5;pointer-events:auto;display:none;user-select:text;"></pre>
-
-        <!-- Canvas layer (color modes + pixel) -->
-        <canvas id="ascii-canvas" style="position:absolute;top:0;left:0;z-index:1;display:none;"></canvas>
-
-        <!-- Play overlay -->
-        <div id="play-overlay" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 cursor-pointer">
-          <div class="w-16 h-16 rounded-full border-2 border-primary-container flex items-center justify-center mb-4 glow-cyan">
+<div id="player-container" class="w-full h-full relative flex items-center justify-center overflow-hidden">
+    <pre id="ascii-player" style="font-family:'Courier New',monospace;white-space:pre;overflow:hidden;font-size:8px;line-height:8px;font-weight:bold;color:transparent;position:absolute;top:0;left:0;z-index:5;pointer-events:auto;display:none;user-select:text;"></pre>
+    <canvas id="ascii-canvas" style="position:absolute;top:0;left:0;z-index:1;display:none;"></canvas>
+    
+    <div id="play-overlay" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 cursor-pointer">
+        <div class="w-16 h-16 rounded-full border-2 border-primary-container flex items-center justify-center mb-4">
             <div style="width:0;height:0;border-style:solid;border-width:12px 0 12px 22px;border-color:transparent transparent transparent #00f3ff;margin-left:4px;"></div>
-          </div>
-          <p class="text-primary-container text-sm tracking-[0.25em] font-bold glow-text">INITIALIZE UPLINK</p>
-          <p class="text-on-surface-variant text-xs mt-2 tracking-widest">CLICK TO START STREAM</p>
         </div>
-
-        <!-- Status tags overlay -->
-        <div class="absolute top-3 left-3 z-20 flex gap-2 text-[10px]">
-          <span id="tag-fps" class="text-secondary-fixed-dim bg-black/60 px-2 py-0.5 border border-secondary-fixed-dim tracking-widest hidden">[ -- FPS ]</span>
-          <span id="tag-mode" class="text-primary-container bg-black/60 px-2 py-0.5 border border-primary-container tracking-widest hidden">[ -- ]</span>
-        </div>
-
-        <!-- Filter/Settings overlay panel -->
-        <div id="filter-menu" class="filter-menu absolute top-0 right-0 h-full z-30">
-          <div class="filter-menu-inner" style="background:rgba(13,13,18,0.97);border:1px solid var(--accent);padding:20px 24px;font-family:'JetBrains Mono',monospace;color:var(--accent);min-width:270px;max-width:320px;max-height:100%;overflow-y:auto;height:100%;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;font-size:13px;letter-spacing:2px;">
-              <span>[ SIGNAL SETTINGS ]</span>
-              <button id="filter-close" style="background:none;border:1px solid #555;color:#aaa;font-size:14px;cursor:pointer;padding:2px 8px;font-family:inherit;">✕</button>
-            </div>
-            <div style="font-size:10px;color:#555;margin:14px 0 10px;letter-spacing:2px;display:flex;align-items:center;gap:8px;"><span style="flex:1;border-top:1px dashed #333;"></span>IMAGE FILTERS<span style="flex:1;border-top:1px dashed #333;"></span></div>
-            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">CONTRAST</label>
-              <input id="filter-contrast" type="range" min="0.1" max="3.0" step="0.05" value="1.0" style="flex:1;">
-              <span id="filter-contrast-val" style="font-size:10px;min-width:30px;text-align:right;">1.00</span>
-            </div>
-            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">GAMMA</label>
-              <input id="filter-gamma" type="range" min="0.1" max="3.0" step="0.05" value="1.0" style="flex:1;">
-              <span id="filter-gamma-val" style="font-size:10px;min-width:30px;text-align:right;">1.00</span>
-            </div>
-            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">BRIGHT</label>
-              <input id="filter-brightness" type="range" min="-100" max="100" step="1" value="0" style="flex:1;">
-              <span id="filter-brightness-val" style="font-size:10px;min-width:30px;text-align:right;">0</span>
-            </div>
-            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">SHARPEN</label>
-              <input id="filter-sharpness" type="range" min="0" max="10" step="1" value="0" style="flex:1;">
-              <span id="filter-sharpness-val" style="font-size:10px;min-width:30px;text-align:right;">0</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">INVERT</label>
-              <button id="filter-invert" data-active="false" style="background:none;border:1px solid #444;color:#666;font-family:inherit;font-size:10px;padding:3px 12px;cursor:pointer;letter-spacing:2px;">OFF</button>
-            </div>
-            <div style="font-size:10px;color:#555;margin:14px 0 10px;letter-spacing:2px;display:flex;align-items:center;gap:8px;"><span style="flex:1;border-top:1px dashed #333;"></span>RENDER ENGINE<span style="flex:1;border-top:1px dashed #333;"></span></div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">PIXEL MODE</label>
-              <button id="filter-pixel" data-active="false" style="background:none;border:1px solid #444;color:#666;font-family:inherit;font-size:10px;padding:3px 12px;cursor:pointer;letter-spacing:2px;">OFF</button>
-            </div>
-            <div style="font-size:10px;color:#555;margin:14px 0 10px;letter-spacing:2px;display:flex;align-items:center;gap:8px;"><span style="flex:1;border-top:1px dashed #333;"></span>ASCII PALETTE<span style="flex:1;border-top:1px dashed #333;"></span></div>
-            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
-              <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#ccc;cursor:pointer;padding:4px 8px;border:1px solid transparent;">
-                <input type="radio" name="palette" value="default" checked style="accent-color:var(--accent);"> DEFAULT <span style="margin-left:auto;font-size:9px;color:#555;letter-spacing:2px;"> `.-':+!rc*z@</span>
-              </label>
-              <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#ccc;cursor:pointer;padding:4px 8px;border:1px solid transparent;">
-                <input type="radio" name="palette" value="flat" style="accent-color:var(--accent);"> FLAT/ANIME <span style="margin-left:auto;font-size:9px;color:#555;letter-spacing:2px;"> .:-=+*#%@</span>
-              </label>
-              <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#ccc;cursor:pointer;padding:4px 8px;border:1px solid transparent;">
-                <input type="radio" name="palette" value="block" style="accent-color:var(--accent);"> BLOCK <span style="margin-left:auto;font-size:11px;color:var(--accent);"> ░▒▓</span>
-              </label>
-            </div>
-            <button id="filter-reset" style="display:block;width:100%;background:none;border:1px solid #444;color:#888;font-family:inherit;font-size:10px;padding:6px 0;cursor:pointer;letter-spacing:2px;">[ RESET ]</button>
-          </div>
-        </div>
-
-      </div><!-- /player-container -->
-
-      <!-- CONTROLS BAR -->
-      <div class="flex flex-wrap items-center gap-3 px-3 py-2 bg-surface border border-outline-variant text-xs">
-
-        <!-- Play/Pause -->
-        <button id="play-pause-btn" class="text-primary-container hover:text-black hover:bg-primary-container border border-primary-container px-3 py-1 transition-colors tracking-wider font-bold" title="Play/Pause (Space)">▶</button>
-
-        <!-- Skip back -->
-        <button id="btn-back" class="text-on-surface-variant hover:text-primary-container border border-outline-variant px-2 py-1 transition-colors" title="Back 10s (←)">«10</button>
-
-        <!-- Time current -->
-        <span id="time-current" class="text-primary-container font-mono tabular-nums w-10 text-center">00:00</span>
-
-        <!-- Seek bar -->
-        <div class="seek-wrap flex-1 min-w-16 relative h-4 flex items-center" style="min-width:80px;">
-          <div class="seek-track absolute left-0 right-0 h-0.5 bg-surface-variant rounded pointer-events-none"></div>
-          <div id="seek-played" class="seek-filled absolute left-0 h-0.5 w-full rounded pointer-events-none" style="transform-origin:left;transform:scaleX(0);will-change:transform;"></div>
-          <input id="seek-slider" type="range" class="absolute w-full h-full opacity-0 z-10 cursor-pointer" min="0" max="100" step="0.1" value="0" title="Seek"/>
-          <!-- hover preview -->
-          <div class="seek-preview" id="seek-preview">
-            <div id="seek-preview-img" class="seek-preview-img" style="background-repeat:no-repeat;"></div>
-            <div id="seek-preview-time" class="seek-preview-time">0:00</div>
-          </div>
-        </div>
-
-        <!-- Time total -->
-        <span id="time-total" class="text-on-surface-variant font-mono tabular-nums w-10 text-center">00:00</span>
-
-        <!-- Skip fwd -->
-        <button id="btn-fwd" class="text-on-surface-variant hover:text-primary-container border border-outline-variant px-2 py-1 transition-colors" title="Fwd 10s (→)">10»</button>
-
-        <!-- Volume -->
-        <div class="flex items-center gap-2 shrink-0">
-          <span class="text-on-surface-variant text-xs">VOL_</span>
-          <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="1" style="width:72px;">
-        </div>
-
-        <!-- Settings -->
-        <button id="btn-filters" class="text-primary-container hover:text-black hover:bg-primary-container border border-primary-container px-2 py-1 text-base transition-colors" title="Settings (F)">⚙</button>
-      </div>
-
-      <!-- Hidden audio -->
-      <audio id="ascii-audio" preload="none"></audio>
-
-    </div><!-- /player section -->
-
-    <!-- TERMINAL LOG (decorative + real status) -->
-    <div class="border border-outline-variant bg-surface p-3 text-xs text-on-surface-variant font-mono h-20 overflow-hidden relative hidden md:block">
-      <div class="absolute inset-0 bg-gradient-to-b from-transparent to-surface z-10 pointer-events-none"></div>
-      <p><span class="text-primary-container">&gt;</span> ASCILINE ENGINE BOOT COMPLETE. CODEC: ADAPTIVE</p>
-      <p><span class="text-primary-container">&gt;</span> WS: /ws?codec=adaptive | AUDIO SYNC: ENABLED</p>
-      <p><span class="text-primary-container">&gt;</span> UPLOAD ENDPOINT: POST /upload | MAX: 2 GB<span class="cursor">_</span></p>
+        <p class="text-primary-container text-sm tracking-[0.25em] font-bold">INITIALIZE UPLINK</p>
     </div>
+</div>
 
-    <!-- ══ UPLOAD SECTION ═════════════════════════════════════════════════ -->
-    <div class="border border-outline-variant bg-surface">
-      <!-- Header -->
-      <div class="flex items-center justify-between px-4 py-2 border-b border-outline-variant">
-        <span class="text-xs text-primary-container tracking-widest font-bold">&gt; INITIALIZE_UPLOAD_SEQUENCE</span>
-        <button id="upload-panel-toggle" class="text-on-surface-variant hover:text-primary-container text-xs tracking-widest transition-colors">[ COLLAPSE ▲ ]</button>
-      </div>
+</main>
+</div>
+<!-- Bottom Panel (Footer) -->
+<footer class="w-full h-[80px] bg-panel border-t border-tech flex flex-col flex-shrink-0 z-20">
+<!-- Timeline -->
 
-      <div id="upload-panel-body" class="p-4 flex flex-col md:flex-row gap-4">
+<div class="h-8 border-b border-tech relative w-full overflow-hidden bg-base-layer group cursor-pointer seek-wrap">
+    <input type="range" id="seek-slider" min="0" max="100" value="0" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30">
+    <div id="seek-played" class="absolute top-[2px] bottom-[2px] left-[0%] right-[100%] bg-primary-container opacity-50 z-20"></div>
+    <div id="seek-preview" class="absolute bottom-8 left-0 hidden flex-col items-center z-50">
+        <canvas id="seek-preview-img" class="border border-primary-container bg-black"></canvas>
+        <div id="seek-preview-time" class="text-xs text-primary-container bg-black px-1 mt-1">00:00</div>
+    </div>
+</div>
 
-        <!-- LEFT: Drop zone + file picker -->
-        <div class="flex-1 flex flex-col gap-3">
+<!-- Transport Controls -->
+<div class="flex-1 flex items-center justify-between px-4">
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 flex items-center justify-center border border-tech text-on-surface-variant hover:text-primary-container hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[20px]">skip_previous</span></button>
+<button id="btn-back" class="w-8 h-8 flex items-center justify-center border border-tech text-on-surface-variant hover:text-primary-container hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[20px]">fast_rewind</span></button>
+<button id="play-pause-btn" class="w-10 h-8 flex items-center justify-center border border-tech bg-surface-variant text-primary-container hover:bg-active transition-colors"><span class="material-symbols-outlined text-[24px]">play_arrow</span></button>
+<button id="btn-fwd" class="w-8 h-8 flex items-center justify-center border border-tech text-on-surface-variant hover:text-primary-container hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[20px]">fast_forward</span></button>
+<button class="w-8 h-8 flex items-center justify-center border border-tech text-on-surface-variant hover:text-primary-container hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[20px]">skip_next</span></button>
+</div>
+<div class="font-data-lg text-data-lg text-on-surface tracking-wider bg-base-layer px-4 py-1 border border-tech">
+<span id="time-current" class="text-primary-container">00:00:00:00</span> <span class="text-on-surface-variant">/</span> <span id="time-total" class="text-on-surface-variant">00:00:00:00</span>
+</div>
+<div class="flex items-center gap-3 w-48">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">volume_up</span>
+<input class="w-full h-[2px] bg-tech appearance-none slider-thumb cursor-pointer" max="100" min="0" type="range" value="75" id="volume-slider"/>
+<span class="font-data-sm text-data-sm text-on-surface-variant min-w-[30px] text-right">75%</span>
+</div>
+</div>
+</footer>
 
-          <!-- Hidden file input -->
-          <input type="file" id="video-file-input" accept=".mp4,.mkv,.webm,.mov,.avi,.m4v" class="hidden"/>
-
-          <!-- Drag & Drop zone -->
-          <div id="drop-zone"
-               class="flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 min-h-48 p-8"
-               style="border: 2px dashed #00f3ff; background: #0d0d10;"
-               onclick="document.getElementById('video-file-input').click()">
-            <span class="material-symbols-outlined text-5xl text-primary-container mb-3" style="font-variation-settings:'FILL' 0;">cloud_upload</span>
-            <p class="text-primary-container font-bold tracking-widest text-sm mb-1">DRAG VIDEO FILE HERE</p>
-            <p class="text-on-surface-variant text-xs tracking-widest">[ .MP4 &nbsp; .MKV &nbsp; .WEBM &nbsp; .MOV &nbsp; .AVI ]</p>
-          </div>
-
-          <!-- OR separator -->
-          <div class="flex items-center gap-3 text-xs">
-            <div class="flex-1 h-px" style="background:rgba(0,243,255,0.3);"></div>
-            <span class="text-primary-container tracking-widest">── OR ──</span>
-            <div class="flex-1 h-px" style="background:rgba(0,243,255,0.3);"></div>
-          </div>
-
-          <!-- Import from files button -->
-          <button id="import-btn"
-                  onclick="document.getElementById('video-file-input').click()"
-                  class="w-full py-3 text-sm tracking-wider font-bold transition-all duration-200 text-primary-container border border-primary-container hover:bg-primary-container hover:text-black"
-                  style="background:#121217;">
-            [ IMPORT FROM FILES ]
-          </button>
-        </div>
-
-        <!-- RIGHT: Progress + Queue log -->
-        <div class="flex flex-col gap-3 w-full md:w-64 shrink-0">
-
-          <!-- Upload progress (hidden until uploading) -->
-          <div id="upload-progress-panel" class="border border-outline-variant p-3 hidden">
-            <p class="text-xs text-on-surface-variant tracking-widest mb-2">ACTIVE_PROCESS</p>
-            <p id="upload-filename" class="text-primary-container text-xs mb-2 truncate">&gt; waiting...</p>
-            <div class="w-full h-1 mb-1" style="background:#1e1e24;">
-              <div id="upload-bar" class="h-full transition-all duration-300" style="width:0%;background:#39ff14;box-shadow:0 0 6px rgba(57,255,20,0.5);"></div>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span id="upload-status" class="text-secondary-fixed-dim tracking-widest">&gt; READY</span>
-              <span id="upload-pct" class="text-secondary-fixed-dim">0%</span>
-            </div>
-          </div>
-
-          <!-- Upload queue list -->
-          <div class="border border-outline-variant p-3 flex-1">
-            <p class="text-xs text-on-surface-variant tracking-widest mb-2">UPLOAD_QUEUE</p>
-            <div id="upload-queue-list" class="space-y-2 text-xs">
-              <p class="text-on-surface-variant italic">&gt; no uploads yet<span class="cursor">_</span></p>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /upload-panel-body -->
-    </div><!-- /upload section -->
-
-  </main><!-- /center -->
-
-</div><!-- /main layout -->
-
-<!-- MOBILE BOTTOM NAV -->
-<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center py-2 bg-surface border-t border-outline-variant z-50">
-  <a href="#" class="flex flex-col items-center text-primary-container text-xs gap-1">
-    <span class="material-symbols-outlined text-lg">videocam</span> LIVE
-  </a>
-  <a href="#" class="flex flex-col items-center text-on-surface-variant text-xs gap-1 hover:text-primary-container">
-    <span class="material-symbols-outlined text-lg">playlist_play</span> ARCHIVE
-  </a>
-  <a href="#" class="flex flex-col items-center text-on-surface-variant text-xs gap-1 hover:text-primary-container">
-    <span class="material-symbols-outlined text-lg">tune</span> SETTINGS
-  </a>
-</nav>
-<div class="h-16 md:hidden"></div>
-
-<!-- ══ ENGINE SCRIPTS ═══════════════════════════════════════════════════════ -->
-<script src="/static/codec.js"></script>
-<script src="/static/app.js"></script>
-
-<!-- Wire status into the nav + tags for the upgraded UI -->
-<script>
-(function patchUI() {
-  // Mirror the status element text to nav bar
-  const statusNav = document.getElementById('status-nav');
-  const statusEl  = document.getElementById('status');
-  const tagFps    = document.getElementById('tag-fps');
-  const tagMode   = document.getElementById('tag-mode');
-  const fpsInfo   = document.getElementById('fps-info');
-  const modeInfo  = document.getElementById('mode-info');
-
-  if (!statusEl || !statusNav) return;
-
-  const observer = new MutationObserver(() => {
-    const txt = statusEl.textContent || '';
-    statusNav.textContent = txt;
-
-    // Parse FPS/mode info from the status string like "FPS: 24/24 | Buf: 0 | 64 Color"
-    const fpsMatch = txt.match(/FPS:\s*([\d/]+)/);
-    const modeMatch = txt.match(/\|\s*([^|]+)$/);
-    if (fpsMatch) {
-      const fpsTxt = `[ ${fpsMatch[1]} FPS ]`;
-      if (tagFps) { tagFps.textContent = fpsTxt; tagFps.classList.remove('hidden'); }
-      if (fpsInfo) fpsInfo.textContent = `FPS: ${fpsMatch[1]}`;
-    }
-    if (modeMatch) {
-      const modeTxt = `[ ${modeMatch[1].trim()} ]`;
-      if (tagMode) { tagMode.textContent = modeTxt; tagMode.classList.remove('hidden'); }
-      if (modeInfo) modeInfo.textContent = `MODE: ${modeMatch[1].trim()}`;
-    }
-
-    // Hide tags when idle
-    if (txt === 'Ready' || txt.includes('IDLE') || txt === 'System Ready') {
-      if (tagFps) tagFps.classList.add('hidden');
-      if (tagMode) tagMode.classList.add('hidden');
-    }
-  });
-  observer.observe(statusEl, { characterData: true, childList: true, subtree: true });
-})();
-</script>
-
-<!-- ══ UPLOAD ENGINE JS ═══════════════════════════════════════════════════ -->
-<script>
-(function initUpload() {
-  const dropZone      = document.getElementById('drop-zone');
-  const fileInput     = document.getElementById('video-file-input');
-  const progressPanel = document.getElementById('upload-progress-panel');
-  const uploadBar     = document.getElementById('upload-bar');
-  const uploadPct     = document.getElementById('upload-pct');
-  const uploadStatus  = document.getElementById('upload-status');
-  const uploadFilename= document.getElementById('upload-filename');
-  const queueList     = document.getElementById('upload-queue-list');
-  const panelToggle   = document.getElementById('upload-panel-toggle');
-  const panelBody     = document.getElementById('upload-panel-body');
-  let uploading = false;
-
-  // ── COLLAPSE TOGGLE ──────────────────────────────────────────────────────
-  if (panelToggle) {
-    panelToggle.addEventListener('click', () => {
-      const collapsed = panelBody.classList.toggle('hidden');
-      panelToggle.textContent = collapsed ? '[ EXPAND ▼ ]' : '[ COLLAPSE ▲ ]';
-    });
-  }
-
-  // ── DRAG VISUAL FEEDBACK ─────────────────────────────────────────────────
-  ['dragenter', 'dragover'].forEach(evt => {
-    dropZone.addEventListener(evt, e => {
-      e.preventDefault();
-      dropZone.style.background = '#0a1a1a';
-      dropZone.style.borderColor = '#39ff14';
-      dropZone.style.boxShadow = '0 0 20px rgba(0,243,255,0.4)';
-    });
-  });
-  ['dragleave', 'drop'].forEach(evt => {
-    dropZone.addEventListener(evt, e => {
-      e.preventDefault();
-      dropZone.style.background = '#0d0d10';
-      dropZone.style.borderColor = '#00f3ff';
-      dropZone.style.boxShadow = 'none';
-    });
-  });
-
-  // ── DROP EVENT ────────────────────────────────────────────────────────────
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  });
-
-  // ── FILE INPUT ────────────────────────────────────────────────────────────
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) handleFile(fileInput.files[0]);
-    fileInput.value = ''; // reset so same file can be re-selected
-  });
-
-  // ── UPLOAD HANDLER ────────────────────────────────────────────────────────
-  function handleFile(file) {
-    if (uploading) { showUploadToast('Upload in progress — please wait.'); return; }
-
-    const ALLOWED = ['.mp4', '.mkv', '.webm', '.mov', '.avi', '.m4v'];
-    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    if (!ALLOWED.includes(ext)) {
-      showUploadToast(`Unsupported format: ${ext}`);
-      return;
-    }
-
-    uploading = true;
-    progressPanel.classList.remove('hidden');
-    uploadFilename.textContent = `> ${file.name}`;
-    setProgress(0, '> UPLOADING...');
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload', true);
-
-    xhr.upload.addEventListener('progress', e => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        setProgress(pct, `> UPLOADING... ${pct}%`);
-      }
-    });
-
-    xhr.addEventListener('load', () => {
-      uploading = false;
-      if (xhr.status === 200) {
-        const res = JSON.parse(xhr.responseText);
-        setProgress(100, '> COMPLETE');
-        addQueueEntry(res.filename || file.name, res.queued_index);
-        setTimeout(() => progressPanel.classList.add('hidden'), 2000);
-      } else {
-        setProgress(0, '> ERROR: ' + xhr.status);
-        showUploadToast('Upload failed: ' + (xhr.responseText || xhr.status));
-        setTimeout(() => progressPanel.classList.add('hidden'), 3000);
-      }
-    });
-
-    xhr.addEventListener('error', () => {
-      uploading = false;
-      setProgress(0, '> CONNECTION ERROR');
-      showUploadToast('Network error during upload.');
-      setTimeout(() => progressPanel.classList.add('hidden'), 3000);
-    });
-
-    xhr.send(formData);
-  }
-
-  function setProgress(pct, statusText) {
-    uploadBar.style.width = pct + '%';
-    uploadPct.textContent = pct + '%';
-    uploadStatus.textContent = statusText;
-  }
-
-  // ── QUEUE ENTRY ───────────────────────────────────────────────────────────
-  function addQueueEntry(filename, queueIndex) {
-    // Remove the "no uploads yet" placeholder
-    const placeholder = queueList.querySelector('p.italic');
-    if (placeholder) placeholder.remove();
-
-    const entry = document.createElement('div');
-    entry.className = 'border border-outline-variant p-2';
-    entry.style.cssText = 'border-color:#333340;background:#0d0d10;';
-    entry.innerHTML = `
-      <div style="color:#39ff14;font-size:10px;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
-        <span class="material-symbols-outlined" style="font-size:12px;">check_circle</span>
-        [ ✓ VIDEO QUEUED ]
-      </div>
-      <div style="color:#e5e1e4;font-size:10px;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${filename}">${filename}</div>
-      <button onclick="playUploaded(${queueIndex}, this)"
-              style="width:100%;padding:4px 0;background:#121217;border:1px solid #00f3ff;color:#00f3ff;font-size:10px;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:all 0.2s;"
-              onmouseover="this.style.background='#00f3ff';this.style.color='#000';"
-              onmouseout="this.style.background='#121217';this.style.color='#00f3ff';">
-        [ PLAY NOW ]
-      </button>`;
-    // Prepend (newest first)
-    queueList.insertBefore(entry, queueList.firstChild);
-  }
-
-  // ── PLAY NOW ──────────────────────────────────────────────────────────────
-  window.playUploaded = function(queueIndex, btn) {
-    // Scroll player into view
-    const playerContainer = document.getElementById('player-container');
-    if (playerContainer) playerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    // startStreamAt is exported by app.js — jumps directly to this queue slot
-    if (typeof startStreamAt === 'function') {
-      startStreamAt(queueIndex);
-    } else if (typeof startStream === 'function') {
-      // Fallback: just open stream from beginning
-      startStream();
-    }
-
-    // Mark button as launched
-    if (btn) {
-      btn.textContent = '[ PLAYING... ]';
-      btn.disabled = true;
-      btn.style.opacity = '0.6';
-      // Re-enable after 5s in case playback fails
-      setTimeout(() => {
-        btn.textContent = '[ PLAY NOW ]';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-      }, 5000);
-    }
-  };
-
-  // ── UPLOAD TOAST ──────────────────────────────────────────────────────────
-  function showUploadToast(msg) {
-    if (typeof showToast === 'function') { showToast(msg); return; }
-    alert(msg);
-  }
-
-})();
-</script>
-
-</body>
-</html>
+<div class="hidden">
+    <span id="status"></span>
+    <span id="tag-fps"></span>
+    <span id="tag-mode"></span>
+    <button id="filter-close"></button>
+    <div id="connection-toast" class="toast"></div>
+    <!-- Radio buttons for palette -->
+    <input type="radio" name="palette" value="default" checked>
+    <input type="radio" name="palette" value="flat">
+    <input type="radio" name="palette" value="block">
+</div>
+<script src="app.js"></script>
+</body></html>
