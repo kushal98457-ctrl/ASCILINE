@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCILINE Static Player</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: #050505;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+        }
+
+        /* ── HEADER ── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-bottom: 1px solid #00ff4130;
+        }
+        header .logo { font-size: 1.2em; letter-spacing: 4px; font-weight: bold; }
+        header .subtitle { font-size: 0.7em; color: #00ff4180; }
+
+        /* ── SETUP BANNER ── */
+        #setup-banner {
+            background: #0a1a0a;
+            border: 1px solid #00ff4130;
+            border-radius: 8px;
+            margin: 24px auto;
+            max-width: 860px;
+            padding: 24px 28px;
+        }
+        #setup-banner h2 {
+            font-size: 0.85em;
+            letter-spacing: 2px;
+            color: #00ff4199;
+            margin-bottom: 16px;
+        }
+        #setup-banner p {
+            font-size: 0.78em;
+            color: #00ff4177;
+            line-height: 1.7;
+            margin-bottom: 14px;
+        }
+        .step {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 12px;
+            align-items: flex-start;
+        }
+        .step-num {
+            min-width: 22px;
+            height: 22px;
+            border: 1px solid #00ff41;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .step-text { font-size: 0.78em; color: #00ff4199; line-height: 1.6; }
+        code {
+            background: #001a00;
+            border: 1px solid #00ff4140;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.92em;
+            color: #00ff41;
+        }
+        .code-block {
+            background: #001a00;
+            border: 1px solid #00ff4130;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            font-size: 0.78em;
+            color: #00ff41cc;
+            line-height: 1.8;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        /* ── PLAYER AREA ── */
+        #player-area {
+            max-width: 860px;
+            margin: 0 auto 24px;
+            padding: 0 24px;
+        }
+        #player-area h2 {
+            font-size: 0.85em;
+            letter-spacing: 2px;
+            color: #00ff4199;
+            margin-bottom: 16px;
+        }
+
+        /* URL input row */
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .input-row label {
+            font-size: 0.72em;
+            color: #00ff4177;
+            white-space: nowrap;
+            align-self: center;
+            min-width: 60px;
+        }
+        .input-row input {
+            flex: 1;
+            background: #001a00;
+            border: 1px solid #00ff4140;
+            border-radius: 5px;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            padding: 8px 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-row input:focus { border-color: #00ff41; }
+        .input-row input::placeholder { color: #00ff4140; }
+
+        #play-btn {
+            width: 100%;
+            margin-top: 8px;
+            padding: 11px;
+            background: transparent;
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        #play-btn:hover { background: #00ff41; color: #000; }
+        #play-btn:disabled { opacity: 0.4; cursor: default; }
+
+        /* ── CANVAS CONTAINER ── */
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            border: 1px solid #00ff4130;
+            border-radius: 8px;
+            overflow: visible;
+            margin-top: 16px;
+            background: #000;
+            display: none;
+        }
+        #canvas-container.active { display: block; }
+        #player-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+        }
+        #player-container canvas.ascii-canvas {
+            display: none;
+            width: 100% !important;
+            height: auto !important;
+            max-height: 70vh;
+            object-fit: contain;
+            position: relative;
+            z-index: 1;
+        }
+        #player-container pre.ascii-player {
+            display: none;
+            white-space: pre;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 0.55em;
+            line-height: 1;
+            overflow: visible;
+            position: absolute;
+            z-index: 2;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+        #status-bar {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 6px 12px;
+            font-size: 0.65em;
+            color: #00ff4177;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Error message */
+        #error-msg {
+            display: none;
+            margin-top: 10px;
+            padding: 10px 14px;
+            border: 1px solid #ff4444;
+            border-radius: 6px;
+            color: #ff4444;
+            font-size: 0.75em;
+            background: #1a0000;
+        }
+
+        /* ── DRAG & DROP ── */
+        #drop-zone {
+            border: 2px dashed #00ff4140;
+            border-radius: 10px;
+            padding: 28px 20px;
+            text-align: center;
+            color: #00ff4166;
+            font-size: 0.8em;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s, color 0.2s;
+            margin-bottom: 16px;
+            user-select: none;
+        }
+        #drop-zone:hover, #drop-zone.drag-over {
+            border-color: #00ff41;
+            background: #00ff4108;
+            color: #00ff41;
+        }
+        #drop-zone .drop-icon { font-size: 1.8em; margin-bottom: 6px; }
+        #drop-zone .drop-hint { font-size: 0.75em; color: #00ff4144; margin-top: 4px; }
+        #drop-zone.has-file {
+            border-color: #00ff41;
+            background: #00ff4110;
+            color: #00ff41;
+        }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 12px 0;
+            color: #00ff4133;
+            font-size: 0.7em;
+            letter-spacing: 2px;
+        }
+        .section-divider::before, .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #00ff4120;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <div class="logo">ASCILINE</div>
+        <div class="subtitle">STATIC PLAYER</div>
+    </div>
+</header>
+
+<!-- SETUP GUIDE -->
+<div id="setup-banner">
+    <h2>// HOW TO PLAY A VIDEO</h2>
+    <p>You need a compiled <code>.ascf</code> file. Use <code>compiler.py</code> from this folder to create one:</p>
+
+    <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+            Open a terminal and go to the <code>static_player</code> folder:
+            <div class="code-block">cd path/to/ASCILINE/static_player</div>
+        </div>
+    </div>
+    <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+            Compile your video (MP4, AVI, etc.):
+            <div class="code-block"># Default ASCII mode (Mode 5 - Colored characters):
+python compiler.py your_video.mp4 --cols 160 --mode 5
+
+# Smaller file size for ASCII mode (lossy color tolerance):
+python compiler.py your_video.mp4 --cols 160 --mode 5 --tolerance 10
+
+# Pixel mode (no characters, just colors). Use higher cols for better quality:
+python compiler.py your_video.mp4 --cols 250 --pixel --quantize 2</div>
+        </div>
+    </div>
+    <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+            Serve this folder with a local server (required by the browser):
+            <div class="code-block">python -m http.server 8080</div>
+            Then open <code>http://localhost:8080</code> in your browser.
+        </div>
+    </div>
+    <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+            Enter the filename of your compiled <code>.ascf</code> file below and press PLAY.
+        </div>
+    </div>
+</div>
+
+<!-- PLAYER CONTROLS -->
+<div id="player-area">
+    <h2>// PLAYER</h2>
+
+    <div class="input-row">
+        <label>.ascf</label>
+        <input type="text" id="ascf-input" placeholder="output.ascf" value="">
+    </div>
+    <div class="input-row">
+        <label>.mp3</label>
+        <input type="text" id="audio-input" placeholder="output.mp3  (optional)" value="">
+    </div>
+
+    <button id="play-btn">▶ PLAY</button>
+    <div id="error-msg"></div>
+
+    <!-- DRAG & DROP ZONE -->
+    <div id="drop-zone">
+        <div class="drop-icon">⬇</div>
+        <div id="drop-label">Drop .ascf file here to play instantly</div>
+        <div class="drop-hint">(also drop .mp3 at the same time for audio)</div>
+    </div>
+
+    <div class="section-divider">OR USE URL</div>
+
+    <div id="canvas-container">
+        <!-- Real container with the class structure AscilinePlayer expects -->
+        <div id="player-container" style="position:relative; width:100%; min-height:360px;">
+            <div class="status" id="status-text" style="position:absolute;top:8px;left:12px;z-index:10;font-size:0.7em;color:#00ff4199;"></div>
+            <pre class="ascii-player" style="display:none; white-space:pre; font-size:0.55em; line-height:1;"></pre>
+            <canvas class="ascii-canvas" style="display:none; width:100%; height:auto;"></canvas>
+            <audio class="ascii-audio" preload="none"></audio>
+        </div>
+        <div id="status-bar">
+            <span id="status-label">Ready</span>
+            <span id="frame-counter"></span>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="codec.js"></script>
+<script src="reader.js"></script>
+<script>
+    const playBtn        = document.getElementById('play-btn');
+    const ascfInput      = document.getElementById('ascf-input');
+    const audioInput     = document.getElementById('audio-input');
+    const errorMsg       = document.getElementById('error-msg');
+    const canvasWrap     = document.getElementById('canvas-container');
+    const playerContainer = document.getElementById('player-container');
+
+    let player = null;
+
+    playBtn.addEventListener('click', async () => {
+        const ascfUrl = ascfInput.value.trim();
+        if (!ascfUrl) { showError('Please enter a .ascf filename.'); return; }
+
+        hideError();
+
+        // Stop and fully destroy previous player
+        if (player) {
+            player.stop();
+            player = null;
+        }
+
+        // Reset the player-container innerHTML so there's no leftover canvas
+        playerContainer.innerHTML = `
+            <div class="status" style="position:absolute;top:8px;left:12px;z-index:10;font-size:0.7em;color:#00ff4199;"></div>
+            <pre class="ascii-player"></pre>
+            <canvas class="ascii-canvas"></canvas>
+            <audio class="ascii-audio" preload="none"></audio>
+        `;
+
+        canvasWrap.classList.add('active');
+
+        try {
+            player = new AscilinePlayer(playerContainer);
+            player.play(ascfUrl, audioInput.value.trim() || null).catch(err => {
+                showError('Playback error: ' + err.message +
+                    (err.message.includes('fetch') ? ' — Make sure you are running a local server (python -m http.server 8080).' : ''));
+            });
+        } catch(e) {
+            showError('Failed to start player: ' + e.message);
+        }
+    });
+
+    function showError(msg) { errorMsg.style.display = 'block'; errorMsg.textContent = msg; }
+    function hideError()    { errorMsg.style.display = 'none'; }
+
+    // ── DRAG & DROP ──
+    const dropZone  = document.getElementById('drop-zone');
+    const dropLabel = document.getElementById('drop-label');
+    let droppedAscfUrl  = null;
+    let droppedAudioUrl = null;
+
+    dropZone.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.ascf,.mp3';
+        input.multiple = true;
+        input.onchange = e => handleFiles(e.target.files);
+        input.click();
+    });
+
+    ['dragenter', 'dragover'].forEach(evt =>
+        dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('drag-over'); })
+    );
+    ['dragleave', 'drop'].forEach(evt =>
+        dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove('drag-over'); })
+    );
+    dropZone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+    // Also accept drops anywhere on the page
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', e => {
+        e.preventDefault();
+        if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+    });
+
+    function handleFiles(files) {
+        // Revoke previous blob URLs to free memory
+        if (droppedAscfUrl)  { URL.revokeObjectURL(droppedAscfUrl);  droppedAscfUrl  = null; }
+        if (droppedAudioUrl) { URL.revokeObjectURL(droppedAudioUrl); droppedAudioUrl = null; }
+
+        let ascfFile = null, audioFile = null;
+        for (const file of files) {
+            if (file.name.endsWith('.ascf')) ascfFile  = file;
+            if (file.name.endsWith('.mp3'))  audioFile = file;
+        }
+        if (!ascfFile) { showError('No .ascf file found in dropped files.'); return; }
+
+        droppedAscfUrl  = URL.createObjectURL(ascfFile);
+        droppedAudioUrl = audioFile ? URL.createObjectURL(audioFile) : null;
+
+        dropZone.classList.add('has-file');
+        dropLabel.textContent = '▶ ' + ascfFile.name + (audioFile ? ' + ' + audioFile.name : '') + ' — playing...';
+
+        // Clear URL inputs so there's no conflict
+        ascfInput.value  = '';
+        audioInput.value = '';
+        hideError();
+        startPlayback(droppedAscfUrl, droppedAudioUrl);
+    }
+
+    function startPlayback(ascfUrl, audioUrl) {
+        if (player) { player.stop(); player = null; }
+
+        playerContainer.innerHTML = `
+            <div class="status" style="position:absolute;top:8px;left:12px;z-index:10;font-size:0.7em;color:#00ff4199;"></div>
+            <pre class="ascii-player"></pre>
+            <canvas class="ascii-canvas"></canvas>
+            <audio class="ascii-audio" preload="none"></audio>
+        `;
+        canvasWrap.classList.add('active');
+
+        try {
+            player = new AscilinePlayer(playerContainer);
+            player.play(ascfUrl, audioUrl).catch(err => {
+                showError('Playback error: ' + err.message +
+                    (err.message.includes('fetch') ? ' — Make sure you are running a local server (python -m http.server 8080) or use Drag & Drop instead.' : ''));
+            });
+        } catch(e) {
+            showError('Failed to start player: ' + e.message);
+        }
+    }
+
+    playBtn.addEventListener('click', async () => {
+        const ascfUrl = ascfInput.value.trim();
+        if (!ascfUrl) { showError('Please enter a .ascf filename.'); return; }
+        hideError();
+        dropZone.classList.remove('has-file');
+        dropLabel.textContent = 'Drop .ascf file here to play instantly';
+        startPlayback(ascfUrl, audioInput.value.trim() || null);
+    });
+</script>
+
+</body>
+</html>

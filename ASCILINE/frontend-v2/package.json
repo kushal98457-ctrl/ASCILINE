@@ -1,0 +1,19 @@
+{
+  "name": "asciline-v2",
+  "version": "0.1.0",
+  "description": "ASCILINE V2 — GPU-first ASCII video rendering engine (WebGPU primary, WebGL2 fallback)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5",
+    "@webgpu/types": "^0.1.44"
+  }
+}

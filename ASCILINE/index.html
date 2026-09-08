@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ASCILINE — Real-Time ASCII Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary-container": "#00f3ff",
+          "secondary-fixed-dim": "#39ff14",
+          "background": "#0a0a0c",
+          "surface": "#121217",
+          "surface-variant": "#1e1e24",
+          "surface-container-low": "#1a1a20",
+          "surface-container-high": "#2a2a2c",
+          "outline-variant": "#333340",
+          "on-surface": "#e5e1e4",
+          "on-surface-variant": "#9090a0",
+          "error-color": "#ff003c",
+        },
+        fontFamily: {
+          mono: ["JetBrains Mono", "Courier New", "monospace"],
+          display: ["Courier Prime", "Courier New", "monospace"],
+        },
+      },
+    },
+  }
+</script>
+<style>
+  :root {
+    --accent: #00f3ff;
+    --accent2: #39ff14;
+    --bg: #0a0a0c;
+    --surface: #121217;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { background: var(--bg); color: var(--accent); font-family: 'JetBrains Mono', 'Courier New', monospace; min-height: 100vh; overflow-x: hidden; }
+
+  /* Neon glow helpers */
+  .glow-cyan { box-shadow: 0 0 15px rgba(0,243,255,0.3), 0 0 2px rgba(0,243,255,0.5) inset; }
+  .glow-text { text-shadow: 0 0 10px rgba(0,243,255,0.7); }
+  .glow-green { text-shadow: 0 0 8px rgba(57,255,20,0.7); }
+
+  /* Scanline overlay effect */
+  #player-container::before {
+    content: '';
+    position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+  /* Range sliders */
+  input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #333340; border-radius: 1px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent); margin-top: -5px; box-shadow: 0 0 8px rgba(0,243,255,0.6); }
+  input[type=range]::-moz-range-track { height: 2px; background: #333340; border-radius: 1px; }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; background: var(--accent); border: none; box-shadow: 0 0 8px rgba(0,243,255,0.6); }
+
+  /* Seek played fill */
+  .seek-filled { background: var(--accent2); }
+
+  /* Settings panel */
+  #settings-panel { transition: transform 0.25s ease, opacity 0.25s ease; }
+  #settings-panel.panel-hidden { transform: translateX(110%); opacity: 0; pointer-events: none; }
+
+  /* Pause effect */
+  @keyframes tremble {
+    0%,100% { transform: translate(0,0); }
+    25% { transform: translate(1px,0); }
+    75% { transform: translate(-1px,1px); }
+  }
+  #player-container.paused { filter: saturate(0.3) brightness(0.6); }
+  #player-container.paused #ascii-canvas,
+  #player-container.paused #ascii-player { animation: tremble 0.1s steps(3) infinite; }
+
+  /* Play overlay */
+  #play-overlay { transition: opacity 0.2s ease; }
+  #play-overlay.hidden { display: none; }
+
+  /* Toast */
+  #connection-toast { transition: opacity 0.2s ease; }
+  .toast { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; background: var(--surface); border: 1px solid #333; border-left: 3px solid var(--accent); color: var(--accent); font-size: 12px; padding: 10px 18px; opacity: 0; pointer-events: none; letter-spacing: 1px; }
+  .toast.show { opacity: 1; }
+
+  /* Seek preview */
+  .seek-preview { position: absolute; bottom: 22px; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; pointer-events: none; z-index: 60; }
+  .seek-preview.show { display: flex; }
+  .seek-preview-img { border: 1px solid var(--accent); }
+  .seek-preview-time { margin-top: 3px; font-size: 10px; color: #fff; background: rgba(0,0,0,0.85); padding: 1px 6px; white-space: nowrap; }
+
+  /* Pulse animation for live dot */
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity: 0.3; } }
+  .live-dot { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* Blinking cursor */
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+  .cursor { animation: blink 1s step-end infinite; }
+
+  /* Corner bracket decoration */
+  .bracket-tl::before { content: ''; position: absolute; top: -1px; left: -1px; width: 12px; height: 12px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .bracket-br::after { content: ''; position: absolute; bottom: -1px; right: -1px; width: 12px; height: 12px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+</style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+<!-- ══ TOP NAV ═══════════════════════════════════════════════════════════════ -->
+<nav class="flex items-center justify-between px-6 py-3 border-b border-outline-variant bg-surface sticky top-0 z-50">
+  <div class="flex items-center gap-4">
+    <span class="text-xl font-bold glow-text tracking-[0.3em] text-primary-container" style="font-family:'Courier Prime',monospace">ASCILINE</span>
+    <span class="text-xs text-on-surface-variant tracking-widest hidden md:block">REAL-TIME MATRIX SIGNAL DECODING</span>
+  </div>
+  <div class="flex items-center gap-4 text-xs text-on-surface-variant">
+    <span id="status-nav" class="tracking-widest text-primary-container">SYSTEM READY</span>
+    <span class="live-dot w-2 h-2 rounded-full bg-secondary-fixed-dim inline-block"></span>
+    <span class="hidden md:block">[ OPERATOR_01 ]</span>
+  </div>
+</nav>
+
+<!-- ══ MAIN LAYOUT ════════════════════════════════════════════════════════════ -->
+<div class="flex flex-1 overflow-hidden relative">
+
+  <!-- LEFT SIDEBAR (desktop) -->
+  <aside class="hidden lg:flex flex-col w-52 border-r border-outline-variant bg-surface p-4 gap-6 shrink-0">
+    <div>
+      <p class="text-primary-container text-xs tracking-widest mb-1 glow-text">OPERATOR_01</p>
+      <p class="text-secondary-fixed-dim text-xs glow-green">[ STATUS: CONNECTED ]</p>
+    </div>
+    <nav class="space-y-1 text-xs">
+      <a href="#" class="flex items-center gap-2 py-2 px-3 text-secondary-fixed-dim border-l-2 border-secondary-fixed-dim bg-surface-container-low tracking-wider">
+        <span class="material-symbols-outlined text-sm">videocam</span> UPLINK
+      </a>
+      <a href="#" class="flex items-center gap-2 py-2 px-3 text-on-surface-variant hover:text-primary-container tracking-wider transition-colors">
+        <span class="material-symbols-outlined text-sm">playlist_play</span> ARCHIVE
+      </a>
+      <a href="#" class="flex items-center gap-2 py-2 px-3 text-on-surface-variant hover:text-primary-container tracking-wider transition-colors">
+        <span class="material-symbols-outlined text-sm">grid_view</span> MATRIX
+      </a>
+      <a href="#" class="flex items-center gap-2 py-2 px-3 text-on-surface-variant hover:text-primary-container tracking-wider transition-colors">
+        <span class="material-symbols-outlined text-sm">code</span> ENCODE
+      </a>
+    </nav>
+    <!-- Terminal mini-log -->
+    <div class="mt-auto border border-outline-variant p-2 text-[10px] text-on-surface-variant space-y-1 overflow-hidden h-28">
+      <p><span class="text-primary-container">&gt;</span> INIT ENGINE...</p>
+      <p><span class="text-primary-container">&gt;</span> CODEC: ADAPTIVE</p>
+      <p><span class="text-primary-container">&gt;</span> WS: READY<span class="cursor">_</span></p>
+    </div>
+  </aside>
+
+  <!-- ══ CENTER CONTENT ══════════════════════════════════════════════════════ -->
+  <main class="flex-1 flex flex-col gap-4 p-4 overflow-y-auto min-w-0">
+
+    <!-- STATUS BAR -->
+    <div class="flex items-center gap-3 text-xs text-on-surface-variant flex-wrap">
+      <span id="status" class="text-primary-container tracking-widest">SYSTEM READY</span>
+      <span class="hidden md:inline">|</span>
+      <span class="hidden md:inline" id="fps-info">FPS: --</span>
+      <span class="hidden md:inline">|</span>
+      <span class="hidden md:inline" id="mode-info">MODE: --</span>
+    </div>
+
+    <!-- PLAYER SECTION -->
+    <div class="flex flex-col gap-2">
+
+      <!-- Player container -->
+      <div id="player-container" class="relative w-full bg-surface glow-cyan border border-outline-variant overflow-hidden bracket-tl bracket-br"
+           style="aspect-ratio: 860/560;">
+
+        <!-- ASCII text layer (B&W + selection) -->
+        <pre id="ascii-player" style="font-family:'Courier New',monospace;white-space:pre;overflow:hidden;font-size:8px;line-height:8px;font-weight:bold;color:transparent;position:absolute;top:0;left:0;z-index:5;pointer-events:auto;display:none;user-select:text;"></pre>
+
+        <!-- Canvas layer (color modes + pixel) -->
+        <canvas id="ascii-canvas" style="position:absolute;top:0;left:0;z-index:1;display:none;"></canvas>
+
+        <!-- Play overlay -->
+        <div id="play-overlay" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 cursor-pointer">
+          <div class="w-16 h-16 rounded-full border-2 border-primary-container flex items-center justify-center mb-4 glow-cyan">
+            <div style="width:0;height:0;border-style:solid;border-width:12px 0 12px 22px;border-color:transparent transparent transparent #00f3ff;margin-left:4px;"></div>
+          </div>
+          <p class="text-primary-container text-sm tracking-[0.25em] font-bold glow-text">INITIALIZE UPLINK</p>
+          <p class="text-on-surface-variant text-xs mt-2 tracking-widest">CLICK TO START STREAM</p>
+        </div>
+
+        <!-- Status tags overlay -->
+        <div class="absolute top-3 left-3 z-20 flex gap-2 text-[10px]">
+          <span id="tag-fps" class="text-secondary-fixed-dim bg-black/60 px-2 py-0.5 border border-secondary-fixed-dim tracking-widest hidden">[ -- FPS ]</span>
+          <span id="tag-mode" class="text-primary-container bg-black/60 px-2 py-0.5 border border-primary-container tracking-widest hidden">[ -- ]</span>
+        </div>
+
+        <!-- Filter/Settings overlay panel -->
+        <div id="filter-menu" class="filter-menu absolute top-0 right-0 h-full z-30">
+          <div class="filter-menu-inner" style="background:rgba(13,13,18,0.97);border:1px solid var(--accent);padding:20px 24px;font-family:'JetBrains Mono',monospace;color:var(--accent);min-width:270px;max-width:320px;max-height:100%;overflow-y:auto;height:100%;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;font-size:13px;letter-spacing:2px;">
+              <span>[ SIGNAL SETTINGS ]</span>
+              <button id="filter-close" style="background:none;border:1px solid #555;color:#aaa;font-size:14px;cursor:pointer;padding:2px 8px;font-family:inherit;">✕</button>
+            </div>
+            <div style="font-size:10px;color:#555;margin:14px 0 10px;letter-spacing:2px;display:flex;align-items:center;gap:8px;"><span style="flex:1;border-top:1px dashed #333;"></span>IMAGE FILTERS<span style="flex:1;border-top:1px dashed #333;"></span></div>
+            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">CONTRAST</label>
+              <input id="filter-contrast" type="range" min="0.1" max="3.0" step="0.05" value="1.0" style="flex:1;">
+              <span id="filter-contrast-val" style="font-size:10px;min-width:30px;text-align:right;">1.00</span>
+            </div>
+            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">GAMMA</label>
+              <input id="filter-gamma" type="range" min="0.1" max="3.0" step="0.05" value="1.0" style="flex:1;">
+              <span id="filter-gamma-val" style="font-size:10px;min-width:30px;text-align:right;">1.00</span>
+            </div>
+            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">BRIGHT</label>
+              <input id="filter-brightness" type="range" min="-100" max="100" step="1" value="0" style="flex:1;">
+              <span id="filter-brightness-val" style="font-size:10px;min-width:30px;text-align:right;">0</span>
+            </div>
+            <div class="filter-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">SHARPEN</label>
+              <input id="filter-sharpness" type="range" min="0" max="10" step="1" value="0" style="flex:1;">
+              <span id="filter-sharpness-val" style="font-size:10px;min-width:30px;text-align:right;">0</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">INVERT</label>
+              <button id="filter-invert" data-active="false" style="background:none;border:1px solid #444;color:#666;font-family:inherit;font-size:10px;padding:3px 12px;cursor:pointer;letter-spacing:2px;">OFF</button>
+            </div>
+            <div style="font-size:10px;color:#555;margin:14px 0 10px;letter-spacing:2px;display:flex;align-items:center;gap:8px;"><span style="flex:1;border-top:1px dashed #333;"></span>RENDER ENGINE<span style="flex:1;border-top:1px dashed #333;"></span></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <label style="font-size:10px;color:#aaa;min-width:72px;letter-spacing:1px;text-transform:uppercase;">PIXEL MODE</label>
+              <button id="filter-pixel" data-active="false" style="background:none;border:1px solid #444;color:#666;font-family:inherit;font-size:10px;padding:3px 12px;cursor:pointer;letter-spacing:2px;">OFF</button>
+            </div>
+            <div style="font-size:10px;color:#555;margin:14px 0 10px;letter-spacing:2px;display:flex;align-items:center;gap:8px;"><span style="flex:1;border-top:1px dashed #333;"></span>ASCII PALETTE<span style="flex:1;border-top:1px dashed #333;"></span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#ccc;cursor:pointer;padding:4px 8px;border:1px solid transparent;">
+                <input type="radio" name="palette" value="default" checked style="accent-color:var(--accent);"> DEFAULT <span style="margin-left:auto;font-size:9px;color:#555;letter-spacing:2px;"> `.-':+!rc*z@</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#ccc;cursor:pointer;padding:4px 8px;border:1px solid transparent;">
+                <input type="radio" name="palette" value="flat" style="accent-color:var(--accent);"> FLAT/ANIME <span style="margin-left:auto;font-size:9px;color:#555;letter-spacing:2px;"> .:-=+*#%@</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#ccc;cursor:pointer;padding:4px 8px;border:1px solid transparent;">
+                <input type="radio" name="palette" value="block" style="accent-color:var(--accent);"> BLOCK <span style="margin-left:auto;font-size:11px;color:var(--accent);"> ░▒▓</span>
+              </label>
+            </div>
+            <button id="filter-reset" style="display:block;width:100%;background:none;border:1px solid #444;color:#888;font-family:inherit;font-size:10px;padding:6px 0;cursor:pointer;letter-spacing:2px;">[ RESET ]</button>
+          </div>
+        </div>
+
+      </div><!-- /player-container -->
+
+      <!-- CONTROLS BAR -->
+      <div class="flex flex-wrap items-center gap-3 px-3 py-2 bg-surface border border-outline-variant text-xs">
+
+        <!-- Play/Pause -->
+        <button id="play-pause-btn" class="text-primary-container hover:text-black hover:bg-primary-container border border-primary-container px-3 py-1 transition-colors tracking-wider font-bold" title="Play/Pause (Space)">▶</button>
+
+        <!-- Skip back -->
+        <button id="btn-back" class="text-on-surface-variant hover:text-primary-container border border-outline-variant px-2 py-1 transition-colors" title="Back 10s (←)">«10</button>
+
+        <!-- Time current -->
+        <span id="time-current" class="text-primary-container font-mono tabular-nums w-10 text-center">00:00</span>
+
+        <!-- Seek bar -->
+        <div class="seek-wrap flex-1 min-w-16 relative h-4 flex items-center" style="min-width:80px;">
+          <div class="seek-track absolute left-0 right-0 h-0.5 bg-surface-variant rounded pointer-events-none"></div>
+          <div id="seek-played" class="seek-filled absolute left-0 h-0.5 w-full rounded pointer-events-none" style="transform-origin:left;transform:scaleX(0);will-change:transform;"></div>
+          <input id="seek-slider" type="range" class="absolute w-full h-full opacity-0 z-10 cursor-pointer" min="0" max="100" step="0.1" value="0" title="Seek"/>
+          <!-- hover preview -->
+          <div class="seek-preview" id="seek-preview">
+            <div id="seek-preview-img" class="seek-preview-img" style="background-repeat:no-repeat;"></div>
+            <div id="seek-preview-time" class="seek-preview-time">0:00</div>
+          </div>
+        </div>
+
+        <!-- Time total -->
+        <span id="time-total" class="text-on-surface-variant font-mono tabular-nums w-10 text-center">00:00</span>
+
+        <!-- Skip fwd -->
+        <button id="btn-fwd" class="text-on-surface-variant hover:text-primary-container border border-outline-variant px-2 py-1 transition-colors" title="Fwd 10s (→)">10»</button>
+
+        <!-- Volume -->
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="text-on-surface-variant text-xs">VOL_</span>
+          <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="1" style="width:72px;">
+        </div>
+
+        <!-- Settings -->
+        <button id="btn-filters" class="text-primary-container hover:text-black hover:bg-primary-container border border-primary-container px-2 py-1 text-base transition-colors" title="Settings (F)">⚙</button>
+      </div>
+
+      <!-- Hidden audio -->
+      <audio id="ascii-audio" preload="none"></audio>
+
+    </div><!-- /player section -->
+
+    <!-- TERMINAL LOG (decorative + real status) -->
+    <div class="border border-outline-variant bg-surface p-3 text-xs text-on-surface-variant font-mono h-20 overflow-hidden relative hidden md:block">
+      <div class="absolute inset-0 bg-gradient-to-b from-transparent to-surface z-10 pointer-events-none"></div>
+      <p><span class="text-primary-container">&gt;</span> ASCILINE ENGINE BOOT COMPLETE. CODEC: ADAPTIVE</p>
+      <p><span class="text-primary-container">&gt;</span> WS: /ws?codec=adaptive | AUDIO SYNC: ENABLED</p>
+      <p><span class="text-primary-container">&gt;</span> UPLOAD ENDPOINT: POST /upload | MAX: 2 GB<span class="cursor">_</span></p>
+    </div>
+
+    <!-- ══ UPLOAD SECTION ═════════════════════════════════════════════════ -->
+    <div class="border border-outline-variant bg-surface">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-4 py-2 border-b border-outline-variant">
+        <span class="text-xs text-primary-container tracking-widest font-bold">&gt; INITIALIZE_UPLOAD_SEQUENCE</span>
+        <button id="upload-panel-toggle" class="text-on-surface-variant hover:text-primary-container text-xs tracking-widest transition-colors">[ COLLAPSE ▲ ]</button>
+      </div>
+
+      <div id="upload-panel-body" class="p-4 flex flex-col md:flex-row gap-4">
+
+        <!-- LEFT: Drop zone + file picker -->
+        <div class="flex-1 flex flex-col gap-3">
+
+          <!-- Hidden file input -->
+          <input type="file" id="video-file-input" accept=".mp4,.mkv,.webm,.mov,.avi,.m4v" class="hidden"/>
+
+          <!-- Drag & Drop zone -->
+          <div id="drop-zone"
+               class="flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 min-h-48 p-8"
+               style="border: 2px dashed #00f3ff; background: #0d0d10;"
+               onclick="document.getElementById('video-file-input').click()">
+            <span class="material-symbols-outlined text-5xl text-primary-container mb-3" style="font-variation-settings:'FILL' 0;">cloud_upload</span>
+            <p class="text-primary-container font-bold tracking-widest text-sm mb-1">DRAG VIDEO FILE HERE</p>
+            <p class="text-on-surface-variant text-xs tracking-widest">[ .MP4 &nbsp; .MKV &nbsp; .WEBM &nbsp; .MOV &nbsp; .AVI ]</p>
+          </div>
+
+          <!-- OR separator -->
+          <div class="flex items-center gap-3 text-xs">
+            <div class="flex-1 h-px" style="background:rgba(0,243,255,0.3);"></div>
+            <span class="text-primary-container tracking-widest">── OR ──</span>
+            <div class="flex-1 h-px" style="background:rgba(0,243,255,0.3);"></div>
+          </div>
+
+          <!-- Import from files button -->
+          <button id="import-btn"
+                  onclick="document.getElementById('video-file-input').click()"
+                  class="w-full py-3 text-sm tracking-wider font-bold transition-all duration-200 text-primary-container border border-primary-container hover:bg-primary-container hover:text-black"
+                  style="background:#121217;">
+            [ IMPORT FROM FILES ]
+          </button>
+        </div>
+
+        <!-- RIGHT: Progress + Queue log -->
+        <div class="flex flex-col gap-3 w-full md:w-64 shrink-0">
+
+          <!-- Upload progress (hidden until uploading) -->
+          <div id="upload-progress-panel" class="border border-outline-variant p-3 hidden">
+            <p class="text-xs text-on-surface-variant tracking-widest mb-2">ACTIVE_PROCESS</p>
+            <p id="upload-filename" class="text-primary-container text-xs mb-2 truncate">&gt; waiting...</p>
+            <div class="w-full h-1 mb-1" style="background:#1e1e24;">
+              <div id="upload-bar" class="h-full transition-all duration-300" style="width:0%;background:#39ff14;box-shadow:0 0 6px rgba(57,255,20,0.5);"></div>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span id="upload-status" class="text-secondary-fixed-dim tracking-widest">&gt; READY</span>
+              <span id="upload-pct" class="text-secondary-fixed-dim">0%</span>
+            </div>
+          </div>
+
+          <!-- Upload queue list -->
+          <div class="border border-outline-variant p-3 flex-1">
+            <p class="text-xs text-on-surface-variant tracking-widest mb-2">UPLOAD_QUEUE</p>
+            <div id="upload-queue-list" class="space-y-2 text-xs">
+              <p class="text-on-surface-variant italic">&gt; no uploads yet<span class="cursor">_</span></p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /upload-panel-body -->
+    </div><!-- /upload section -->
+
+  </main><!-- /center -->
+
+</div><!-- /main layout -->
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center py-2 bg-surface border-t border-outline-variant z-50">
+  <a href="#" class="flex flex-col items-center text-primary-container text-xs gap-1">
+    <span class="material-symbols-outlined text-lg">videocam</span> LIVE
+  </a>
+  <a href="#" class="flex flex-col items-center text-on-surface-variant text-xs gap-1 hover:text-primary-container">
+    <span class="material-symbols-outlined text-lg">playlist_play</span> ARCHIVE
+  </a>
+  <a href="#" class="flex flex-col items-center text-on-surface-variant text-xs gap-1 hover:text-primary-container">
+    <span class="material-symbols-outlined text-lg">tune</span> SETTINGS
+  </a>
+</nav>
+<div class="h-16 md:hidden"></div>
+
+<!-- ══ ENGINE SCRIPTS ═══════════════════════════════════════════════════════ -->
+<script src="/static/codec.js"></script>
+<script src="/static/app.js"></script>
+
+<!-- Wire status into the nav + tags for the upgraded UI -->
+<script>
+(function patchUI() {
+  // Mirror the status element text to nav bar
+  const statusNav = document.getElementById('status-nav');
+  const statusEl  = document.getElementById('status');
+  const tagFps    = document.getElementById('tag-fps');
+  const tagMode   = document.getElementById('tag-mode');
+  const fpsInfo   = document.getElementById('fps-info');
+  const modeInfo  = document.getElementById('mode-info');
+
+  if (!statusEl || !statusNav) return;
+
+  const observer = new MutationObserver(() => {
+    const txt = statusEl.textContent || '';
+    statusNav.textContent = txt;
+
+    // Parse FPS/mode info from the status string like "FPS: 24/24 | Buf: 0 | 64 Color"
+    const fpsMatch = txt.match(/FPS:\s*([\d/]+)/);
+    const modeMatch = txt.match(/\|\s*([^|]+)$/);
+    if (fpsMatch) {
+      const fpsTxt = `[ ${fpsMatch[1]} FPS ]`;
+      if (tagFps) { tagFps.textContent = fpsTxt; tagFps.classList.remove('hidden'); }
+      if (fpsInfo) fpsInfo.textContent = `FPS: ${fpsMatch[1]}`;
+    }
+    if (modeMatch) {
+      const modeTxt = `[ ${modeMatch[1].trim()} ]`;
+      if (tagMode) { tagMode.textContent = modeTxt; tagMode.classList.remove('hidden'); }
+      if (modeInfo) modeInfo.textContent = `MODE: ${modeMatch[1].trim()}`;
+    }
+
+    // Hide tags when idle
+    if (txt === 'Ready' || txt.includes('IDLE') || txt === 'System Ready') {
+      if (tagFps) tagFps.classList.add('hidden');
+      if (tagMode) tagMode.classList.add('hidden');
+    }
+  });
+  observer.observe(statusEl, { characterData: true, childList: true, subtree: true });
+})();
+</script>
+
+<!-- ══ UPLOAD ENGINE JS ═══════════════════════════════════════════════════ -->
+<script>
+(function initUpload() {
+  const dropZone      = document.getElementById('drop-zone');
+  const fileInput     = document.getElementById('video-file-input');
+  const progressPanel = document.getElementById('upload-progress-panel');
+  const uploadBar     = document.getElementById('upload-bar');
+  const uploadPct     = document.getElementById('upload-pct');
+  const uploadStatus  = document.getElementById('upload-status');
+  const uploadFilename= document.getElementById('upload-filename');
+  const queueList     = document.getElementById('upload-queue-list');
+  const panelToggle   = document.getElementById('upload-panel-toggle');
+  const panelBody     = document.getElementById('upload-panel-body');
+  let uploading = false;
+
+  // ── COLLAPSE TOGGLE ──────────────────────────────────────────────────────
+  if (panelToggle) {
+    panelToggle.addEventListener('click', () => {
+      const collapsed = panelBody.classList.toggle('hidden');
+      panelToggle.textContent = collapsed ? '[ EXPAND ▼ ]' : '[ COLLAPSE ▲ ]';
+    });
+  }
+
+  // ── DRAG VISUAL FEEDBACK ─────────────────────────────────────────────────
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropZone.addEventListener(evt, e => {
+      e.preventDefault();
+      dropZone.style.background = '#0a1a1a';
+      dropZone.style.borderColor = '#39ff14';
+      dropZone.style.boxShadow = '0 0 20px rgba(0,243,255,0.4)';
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    dropZone.addEventListener(evt, e => {
+      e.preventDefault();
+      dropZone.style.background = '#0d0d10';
+      dropZone.style.borderColor = '#00f3ff';
+      dropZone.style.boxShadow = 'none';
+    });
+  });
+
+  // ── DROP EVENT ────────────────────────────────────────────────────────────
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  // ── FILE INPUT ────────────────────────────────────────────────────────────
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    fileInput.value = ''; // reset so same file can be re-selected
+  });
+
+  // ── UPLOAD HANDLER ────────────────────────────────────────────────────────
+  function handleFile(file) {
+    if (uploading) { showUploadToast('Upload in progress — please wait.'); return; }
+
+    const ALLOWED = ['.mp4', '.mkv', '.webm', '.mov', '.avi', '.m4v'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!ALLOWED.includes(ext)) {
+      showUploadToast(`Unsupported format: ${ext}`);
+      return;
+    }
+
+    uploading = true;
+    progressPanel.classList.remove('hidden');
+    uploadFilename.textContent = `> ${file.name}`;
+    setProgress(0, '> UPLOADING...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload', true);
+
+    xhr.upload.addEventListener('progress', e => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setProgress(pct, `> UPLOADING... ${pct}%`);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      uploading = false;
+      if (xhr.status === 200) {
+        const res = JSON.parse(xhr.responseText);
+        setProgress(100, '> COMPLETE');
+        addQueueEntry(res.filename || file.name, res.queued_index);
+        setTimeout(() => progressPanel.classList.add('hidden'), 2000);
+      } else {
+        setProgress(0, '> ERROR: ' + xhr.status);
+        showUploadToast('Upload failed: ' + (xhr.responseText || xhr.status));
+        setTimeout(() => progressPanel.classList.add('hidden'), 3000);
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      uploading = false;
+      setProgress(0, '> CONNECTION ERROR');
+      showUploadToast('Network error during upload.');
+      setTimeout(() => progressPanel.classList.add('hidden'), 3000);
+    });
+
+    xhr.send(formData);
+  }
+
+  function setProgress(pct, statusText) {
+    uploadBar.style.width = pct + '%';
+    uploadPct.textContent = pct + '%';
+    uploadStatus.textContent = statusText;
+  }
+
+  // ── QUEUE ENTRY ───────────────────────────────────────────────────────────
+  function addQueueEntry(filename, queueIndex) {
+    // Remove the "no uploads yet" placeholder
+    const placeholder = queueList.querySelector('p.italic');
+    if (placeholder) placeholder.remove();
+
+    const entry = document.createElement('div');
+    entry.className = 'border border-outline-variant p-2';
+    entry.style.cssText = 'border-color:#333340;background:#0d0d10;';
+    entry.innerHTML = `
+      <div style="color:#39ff14;font-size:10px;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
+        <span class="material-symbols-outlined" style="font-size:12px;">check_circle</span>
+        [ ✓ VIDEO QUEUED ]
+      </div>
+      <div style="color:#e5e1e4;font-size:10px;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${filename}">${filename}</div>
+      <button onclick="playUploaded(${queueIndex}, this)"
+              style="width:100%;padding:4px 0;background:#121217;border:1px solid #00f3ff;color:#00f3ff;font-size:10px;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:all 0.2s;"
+              onmouseover="this.style.background='#00f3ff';this.style.color='#000';"
+              onmouseout="this.style.background='#121217';this.style.color='#00f3ff';">
+        [ PLAY NOW ]
+      </button>`;
+    // Prepend (newest first)
+    queueList.insertBefore(entry, queueList.firstChild);
+  }
+
+  // ── PLAY NOW ──────────────────────────────────────────────────────────────
+  window.playUploaded = function(queueIndex, btn) {
+    // Scroll player into view
+    const playerContainer = document.getElementById('player-container');
+    if (playerContainer) playerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // startStreamAt is exported by app.js — jumps directly to this queue slot
+    if (typeof startStreamAt === 'function') {
+      startStreamAt(queueIndex);
+    } else if (typeof startStream === 'function') {
+      // Fallback: just open stream from beginning
+      startStream();
+    }
+
+    // Mark button as launched
+    if (btn) {
+      btn.textContent = '[ PLAYING... ]';
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      // Re-enable after 5s in case playback fails
+      setTimeout(() => {
+        btn.textContent = '[ PLAY NOW ]';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }, 5000);
+    }
+  };
+
+  // ── UPLOAD TOAST ──────────────────────────────────────────────────────────
+  function showUploadToast(msg) {
+    if (typeof showToast === 'function') { showToast(msg); return; }
+    alert(msg);
+  }
+
+})();
+</script>
+
+</body>
+</html>
