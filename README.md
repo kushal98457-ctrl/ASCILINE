@@ -20,7 +20,7 @@ Watch the real-time transformation from source video to WebGPU-accelerated ASCII
 
 <br>
 
-*(Note: These are high-fidelity mockups of the ASCILINE engine in action.)*
+*(Note: Real source frame extracted from video and rendered through ASCILINE's ASCII engine.)*
 
 ---
 
