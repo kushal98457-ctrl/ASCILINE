@@ -1,10 +1,20 @@
 <div align="center">
+  <img src="assets/readme/hero-banner.png" width="100%" alt="ASCILINE - Real-Time ASCII Video Rendering Engine" />
+</div>
 
-# ASCILINE
+<p align="center">
+  <a href="#-demo">Demo</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-documentation">Documentation</a>
+</p>
 
-### GPU-Accelerated ASCII Video Engine
+---
 
-**Transform any video into real-time ASCII art — rendered on canvas, streamed over WebSocket, powered by WebGPU.**
+**ASCILINE** is a high-performance video rendering engine that transforms conventional video frames into real-time **ASCII and pixel-based visual streams**. 
+
+Instead of relying on the browser's traditional `<video>` pipeline, ASCILINE decodes, transforms, compresses, and streams video frames through a custom rendering pipeline — turning the browser into a programmable visual canvas.
 
 <br>
 
@@ -14,7 +24,21 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://www.w3.org/TR/webgpu/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
+---
+
+## ✨ Features
+
+<div align="center">
+  <img src="assets/readme/features.png" width="100%" alt="ASCILINE Features Grid" />
 </div>
+
+* ⚡ **Low-latency WebSocket streaming**
+* 🎨 **Multiple color-fidelity modes** (16 colors to 16M+ True Color)
+* 🔊 **Precise Audio / Video synchronization**
+* 📦 **Custom binary frame protocol** with optional frame compression
+* 🧩 **Standalone `.ascf` compilation pipeline**
+* 📐 **Automatic aspect-ratio scaling**
+* 🖥️ **Windows / macOS / Linux / Docker support**
 
 ---
 
@@ -26,23 +50,27 @@ The result is a fully programmable visual surface: CSS filters, palette swaps, r
 
 ---
 
-## Demo
+## 🎬 Demo (Original vs ASCILINE Output)
 
-| Original Frame | ASCILINE Output |
+Watch the real-time transformation from source video to WebGPU-accelerated ASCII rendering.
+
+| Original Media | ASCILINE Output |
 | :---: | :---: |
-| <img src="assets/demo-input.jpg" width="100%" alt="Original Frame — metallic figure in space"/> | <img src="assets/demo-output.jpg" width="100%" alt="ASCII-rendered output"/> |
+| <img src="assets/demo-input.jpg" width="100%" alt="Original Frame"/> | <img src="assets/demo-output.jpg" width="100%" alt="ASCII Output"/> |
 
-*Source frame processed through the ASCILINE rendering engine in real-time.*
+<br>
+
+*(Note: Real source frame extracted from video and rendered through ASCILINE's ASCII engine.)*
 
 ---
 
-## Application Interface
+## 🖥️ Premium Desktop Workstation UI
+
+ASCILINE features a fully integrated, professional-grade dark mode interface built for high-performance GPU media workflows.
 
 <div align="center">
-<img src="assets/demo-ui.png" width="100%" alt="ASCILINE Desktop Interface"/>
+  <img src="assets/demo-ui.png" width="100%" alt="ASCILINE UI"/>
 </div>
-
-<br>
 
 The workstation UI features:
 
@@ -54,7 +82,11 @@ The workstation UI features:
 
 ---
 
-## Architecture
+## 🧠 Architecture
+
+<div align="center">
+  <img src="assets/readme/architecture.png" width="100%" alt="ASCILINE Processing Pipeline Architecture" />
+</div>
 
 ASCILINE is a fork of the [original ASCILINE engine](https://github.com/YusufB5/ASCILINE) with a restructured codebase, a new performance-focused `core` module, and a redesigned frontend.
 
@@ -120,80 +152,25 @@ ASCILINE is a fork of the [original ASCILINE engine](https://github.com/YusufB5/
 | **`app.js`** | New frontend integration layer mapping the redesigned UI to the backend. |
 | **Redesigned UI** | Cyberpunk-themed dark mode interface with source panel, render settings, WebGPU renderer status, and transport controls. |
 
-### Project Structure
-
-```
-.
-├── ASCILINE/                   # Original engine (submodule)
-│   ├── stream_server.py        #   FastAPI WebSocket server
-│   ├── ascii_video_player2.py  #   Core decoder & ASCII mapper
-│   ├── codec.py                #   Python encoder (RAW/ZLIB/DELTA/RLE/DCT)
-│   ├── codec.js                #   Browser decoder
-│   ├── compiler.py             #   Video → .ascf compiler
-│   ├── app.js                  #   Original frontend logic
-│   ├── index.html              #   Original web client
-│   ├── style.css               #   Original styling
-│   ├── ytdl.py                 #   yt-dlp integration
-│   ├── static_player/          #   Standalone .ascf player
-│   ├── frontend-v2/            #   TypeScript frontend (Vite)
-│   ├── experiments/            #   Codec benchmarks & test vectors
-│   └── test/                   #   E2E & unit tests
-│
-├── core/                       # New performance module
-│   ├── __init__.py
-│   ├── adaptive.py             #   AdaptiveController
-│   ├── frame_queue.py          #   FrameQueue
-│   ├── performance.py          #   PerformanceMonitor
-│   ├── benchmarks/
-│   │   └── benchmark_performance.py
-│   └── tests/
-│       ├── test_adaptive.py
-│       └── test_frame_queue.py
-│
-├── assets/                     # Screenshots & demo media
-│   ├── demo-input.jpg
-│   ├── demo-output.jpg
-│   └── demo-ui.png
-│
-├── app.js                      # New UI integration layer
-└── README.md
-```
-
 ---
 
-## How the Rendering Pipeline Works
+## 🎨 Rendering Modes
 
-**Traditional video playback:**
+ASCILINE supports multiple visual fidelity levels, from classic terminal aesthetics to high-density pixel rendering.
+
+| Mode | Color Depth | Description |
+| :---: | :--- | :--- |
+| `1` | Black & White | Classic terminal text |
+| `2` | 64 colors | Low-color rendering |
+| `3` | 512 colors | Medium color |
+| `4` | 32K colors | High color |
+| `5` | 262K colors | Very high color |
+| `6` | 16M colors | Ultra |
+
+**Pixel Mode**: Replaces traditional ASCII characters with colored block characters (`█`) for significantly higher visual fidelity while preserving the text-based architecture.
+```bash
+python ASCILINE/stream_server.py video.mp4 --pixel --cols 600
 ```
-Video File → Browser Decoder → GPU → Screen
-```
-
-**ASCILINE's approach:**
-```
-Video File → OpenCV Decode → NumPy ASCII Map → Binary Encode → WebSocket → Canvas Text
-```
-
-The key difference: to the browser, there's no `<video>` element. The stream is structured text rendered onto a canvas — which means:
-
-- No browser codec restrictions or autoplay policies
-- Real-time CSS manipulation (glow, shadow, color shifts) on what looks like a video
-- Playback on zero-GPU devices (the server does all the heavy work)
-- Bandwidth proportional to text grid size, not pixel resolution
-
----
-
-## Rendering Modes
-
-| Mode | Color Depth |
-| :---: | :--- |
-| `1` | Black & White |
-| `2` | 64 colors |
-| `3` | 512 colors |
-| `4` | 32K colors |
-| `5` | 262K colors |
-| `6` | 16M colors |
-
-**Pixel Mode** replaces ASCII characters with colored block characters (`█`) for higher visual fidelity while keeping the same text-based rendering pipeline.
 
 ---
 
@@ -233,13 +210,14 @@ controller = AdaptiveController(
 
 ---
 
-## Installation
+## 🚀 Installation & Setup
 
 ### Requirements
 
 - Python 3.9+
 - FFmpeg & FFprobe
 - Modern browser (Canvas + WebSocket support)
+- Git
 
 ### Setup
 
@@ -270,14 +248,6 @@ brew install ffmpeg            # macOS
 sudo apt install ffmpeg        # Linux
 ```
 
-### Run
-
-```bash
-python ASCILINE/stream_server.py video.mp4 --cols 240
-```
-
-Open **http://localhost:8000**.
-
 ---
 
 ## Usage Examples
@@ -301,6 +271,36 @@ python ASCILINE/stream_server.py --folder videos --cols 200 --loop
 # Terminal-only mode (no browser)
 python ASCILINE/ascii_video_player2.py video.mp4 --cols 100
 ```
+Open **http://localhost:8000** in your browser.
+
+---
+
+## 🗂️ Advanced Configuration
+
+### Playlist System
+Queue multiple videos with varying properties using a `playlist.json`:
+```json
+[
+    {
+        "video": "intro.mp4",
+        "mode": 1,
+        "vol": 1
+    },
+    {
+        "video": "main.mp4",
+        "mode": 6,
+        "pixel": true,
+        "vol": 3,
+        "cols": 520
+    }
+]
+```
+
+### Static Compilation
+Compile videos into a custom `.ascf` format for static hosting environments:
+```bash
+python compiler.py video.mp4 --cols 250 --pixel
+```
 
 ---
 
@@ -319,14 +319,20 @@ python -m core.benchmarks.benchmark_performance
 
 ---
 
-## Docker
+## 🐳 Docker Support
 
+Run ASCILINE fully containerized:
+
+```bash
+docker build -t asciline .
+docker run -p 8000:8000 asciline
+```
+
+For multi-container configuration:
 ```bash
 docker compose up --build
 ```
-
 Or manually:
-
 ```bash
 docker build -t asciline ./ASCILINE
 docker run -p 8000:8000 -v $(pwd)/videos:/app/videos asciline
@@ -352,9 +358,11 @@ Built on top of the [ASCILINE](https://github.com/YusufB5/ASCILINE) engine by [Y
 
 ---
 
-## License
+## 📜 License
 
-See [LICENSE](ASCILINE/LICENSE) for terms.
+ASCILINE is distributed under the **MIT License (with Anti-Advertisement Restriction)**. 
+
+See the [LICENSE](ASCILINE/LICENSE) file for the complete terms and conditions.
 
 ---
 
