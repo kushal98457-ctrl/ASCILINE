@@ -1,49 +1,100 @@
 /**
- * ASCILINE ENGINE - Pure & Performant Logic
- * =========================================
- * No decorative animations. Pure WebSocket streaming
- * and high-performance canvas rendering.
- * Includes an "Invisible Selection Layer" for text selection.
+ * ASCILINE PRO ENGINE
+ * ===================
+ * Professional UI bindings and real-time canvas rendering.
  */
 
+// ── DOM ELEMENTS ─────────────────────────────────────────────────────────────
 const player    = document.getElementById('ascii-player');
 const canvas    = document.getElementById('ascii-canvas');
-const ctx       = canvas.getContext('2d');
-const statusEl  = document.getElementById('status');
+const ctx       = canvas.getContext('2d', { alpha: false }); // Optimize for no transparency
 const container = document.getElementById('player-container');
-const overlay   = document.getElementById('play-overlay');
+const playOverlay = document.getElementById('play-overlay');
 const audioEl   = document.getElementById('ascii-audio');
-const volumeSlider = document.getElementById('volume-slider');
 
+// Transport
 const playPauseBtn = document.getElementById('play-pause-btn');
-const seekBar = document.getElementById('seek-slider');
-const timeCurrent = document.getElementById('time-current');
-const timeTotal = document.getElementById('time-total');
-
-// Added controls: skip buttons, played fill, and the hover scrub preview
-const btnBack = document.getElementById('btn-back');
-const btnFwd = document.getElementById('btn-fwd');
+const iconPlay = document.getElementById('icon-play');
+const iconPause = document.getElementById('icon-pause');
+const seekSlider = document.getElementById('seek-slider');
 const seekPlayed = document.getElementById('seek-played');
-const seekWrap = document.querySelector('.seek-wrap');
+const seekWrap = document.getElementById('seek-wrap');
 const seekPreview = document.getElementById('seek-preview');
 const seekPreviewImg = document.getElementById('seek-preview-img');
 const seekPreviewTime = document.getElementById('seek-preview-time');
-let scrubMeta = null; // hover sprite layout from /scrub
+const timeCurrent = document.getElementById('time-current');
+const timeTotal = document.getElementById('time-total');
+const btnBack = document.getElementById('btn-back');
+const btnFwd = document.getElementById('btn-fwd');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+const btnFullscreen = document.getElementById('btn-fullscreen');
 
-function formatTime(seconds) {
-    if (isNaN(seconds) || seconds < 0) return "00:00";
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-}
+// Volume
+const volumeSlider = document.getElementById('volume-slider');
+const btnMute = document.getElementById('btn-mute');
+const iconVolUp = document.getElementById('icon-vol-up');
+const iconVolOff = document.getElementById('icon-vol-off');
 
-// ── STATE ──
+// Header & Connection
+const connectionDot = document.getElementById('connection-dot');
+const connectionText = document.getElementById('connection-text');
+const wsUrlDisplay = document.getElementById('ws-url-display');
+const streamState = document.getElementById('stream-state');
+const streamQueueIdx = document.getElementById('stream-queue-idx');
+const btnStreamConnect = document.getElementById('btn-stream-connect');
+const btnStreamDisconnect = document.getElementById('btn-stream-disconnect');
+const btnHeaderUpload = document.getElementById('btn-header-upload');
+
+// Metadata & Perf
+const metaRes = document.getElementById('meta-res');
+const metaFps = document.getElementById('meta-fps');
+const metaDuration = document.getElementById('meta-duration');
+const perfFps = document.getElementById('perf-fps');
+const perfBuffer = document.getElementById('perf-buffer');
+const perfInflight = document.getElementById('perf-inflight');
+const perfGrid = document.getElementById('perf-grid');
+const hudFps = document.getElementById('hud-fps');
+const hudBuf = document.getElementById('hud-buf');
+const hudMode = document.getElementById('hud-mode');
+const hudOverlay = document.getElementById('hud-overlay');
+const modeBadge = document.getElementById('mode-badge');
+const modeBadgeText = document.getElementById('mode-badge-text');
+
+// Sparkline
+const sparklineCanvas = document.getElementById('sparkline-canvas');
+const sparklineCtx = sparklineCanvas.getContext('2d');
+const sparklineHistory = new Array(60).fill(0);
+
+// Upload & URL
+const uploadDropzone = document.getElementById('upload-dropzone');
+const fileUploadInput = document.getElementById('file-upload-input');
+const urlInput = document.getElementById('url-input');
+const btnConnectUrl = document.getElementById('btn-connect-url');
+
+// Filters
+const filterContrast = document.getElementById('filter-contrast');
+const filterGamma = document.getElementById('filter-gamma');
+const filterBrightness = document.getElementById('filter-brightness');
+const filterSharpness = document.getElementById('filter-sharpness');
+const filterPixel = document.getElementById('filter-pixel');
+const filterInvert = document.getElementById('filter-invert');
+const filterReset = document.getElementById('filter-reset');
+const paletteRadios = document.querySelectorAll('input[name="palette"]');
+
+// Sidebar
+const sidebar = document.getElementById('sidebar');
+const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
+const sidebarTabs = document.querySelectorAll('.sidebar-tab');
+const sidebarContents = document.querySelectorAll('.sidebar-content');
+
+// ── STATE ────────────────────────────────────────────────────────────────────
 let state = 'IDLE'; // IDLE | PLAYING | PAUSED
 let ws = null;
-let bufferReportTimer = null; // periodic backlog report to the server (backpressure)
+let bufferReportTimer = null;
 const frameBuffer = [];
 const BUFFER_SIZE = 4;
-let codecDecoder = null; // Adaptive codec decoder (codec.js)
+let codecDecoder = null;
 let targetFps = 24;
 let frameInterval = 1000 / targetFps;
 let renderMode = 1;
@@ -54,18 +105,13 @@ let duration = 0;
 let isSeeking = false;
 let currentQueueIdx = 0;
 let audioOffset = 0;
-let isWebcamStream = false; // skips audio-sync gate and locks pause
-
+let isWebcamStream = false;
 
 // Grid & Dimensions
 let gridCols = 0, gridRows = 0;
 let charWidth = 0, charHeight = 0;
 let xPos = null, yPos = null;
-
-// Pixel Mode (--pixel) — ImageData pixel buffer
 let dotImageData = null;
-
-// Selection Layer optimization
 const textDecoder = new TextDecoder();
 let selectionBuffer = null;
 
@@ -73,22 +119,298 @@ let selectionBuffer = null;
 let lastRenderTime = 0;
 let frameCount = 0, currentFps = 0, lastFpsUpdate = 0;
 let streamStartTime = 0;
-let streamEpoch = 0; // Incremented on every seek/reinit to cancel stale async audio loads
+let streamEpoch = 0; 
 let lastUiUpdateTime = 0;
 let lastFormattedTime = "";
+let framesInFlight = 0;
+let decodeQueue = Promise.resolve();
+let scrubMeta = null;
 
 const CHAR_LUT = new Array(128);
 for (let i = 0; i < 128; i++) CHAR_LUT[i] = String.fromCharCode(i);
 
-// ═══════════════════════════════════════
-//  CANVAS SETUP
-// ═══════════════════════════════════════
+// ── UTILITIES ────────────────────────────────────────────────────────────────
+
+function formatTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return "00:00";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+}
+
+function showToast(msg, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    
+    // Icon mapping
+    let icon = '';
+    if (type === 'error') icon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+    else if (type === 'success') icon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>';
+    else icon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>';
+
+    el.innerHTML = `${icon} <span>${msg}</span>`;
+    container.appendChild(el);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        el.classList.add('show');
+    });
+    
+    // Remove
+    setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 300);
+    }, 4000);
+}
+
+function updateConnectionState(status, isError = false) {
+    connectionText.textContent = status.toUpperCase();
+    if (status === 'connected' || status === 'playing') {
+        connectionDot.className = 'status-dot connected';
+        streamState.textContent = 'CONNECTED';
+        streamState.className = 'data-value text-success';
+    } else if (status === 'connecting' || status === 'buffering') {
+        connectionDot.className = 'status-dot connecting';
+        streamState.textContent = 'CONNECTING';
+        streamState.className = 'data-value text-warning';
+    } else {
+        connectionDot.className = `status-dot ${isError ? 'error' : ''}`;
+        streamState.textContent = isError ? 'ERROR' : 'DISCONNECTED';
+        streamState.className = `data-value text-${isError ? 'error' : 'secondary'}`;
+    }
+}
+
+// ── UI INTERACTIVITY ─────────────────────────────────────────────────────────
+
+// Tabs
+sidebarTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        sidebarTabs.forEach(t => t.classList.remove('active'));
+        sidebarContents.forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+    });
+});
+
+// Sidebar Toggle
+btnSidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('mobile-open');
+});
+btnHeaderUpload.addEventListener('click', () => {
+    // Switch to Media tab and highlight it
+    document.querySelector('.sidebar-tab[data-tab="tab-media"]').click();
+    if (window.innerWidth <= 900) sidebar.classList.add('mobile-open');
+    uploadDropzone.style.borderColor = 'var(--accent)';
+    setTimeout(() => uploadDropzone.style.borderColor = '', 1000);
+});
+
+// Fullscreen
+btnFullscreen.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => {
+            showToast(`Error attempting to enable full-screen mode: ${err.message}`, 'error');
+        });
+    } else {
+        document.exitFullscreen();
+    }
+});
+
+// Volume / Mute
+function setVolume(val) {
+    val = Math.max(0, Math.min(1, val));
+    audioEl.volume = val;
+    volumeSlider.value = val;
+    localStorage.setItem('asciline_volume', val);
+    
+    if (val === 0 || audioEl.muted) {
+        iconVolUp.style.display = 'none';
+        iconVolOff.style.display = 'block';
+    } else {
+        iconVolUp.style.display = 'block';
+        iconVolOff.style.display = 'none';
+    }
+}
+
+volumeSlider.addEventListener('input', (e) => {
+    audioEl.muted = false;
+    setVolume(parseFloat(e.target.value));
+});
+
+btnMute.addEventListener('click', () => {
+    if (audioEl.muted || audioEl.volume === 0) {
+        audioEl.muted = false;
+        setVolume(parseFloat(localStorage.getItem('asciline_volume')) || 0.75);
+    } else {
+        audioEl.muted = true;
+        iconVolUp.style.display = 'none';
+        iconVolOff.style.display = 'block';
+    }
+});
+
+// Load volume pref
+const savedVol = localStorage.getItem('asciline_volume');
+if (savedVol !== null) setVolume(parseFloat(savedVol));
+
+// Upload Handling
+function handleUpload(file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    showToast(`Uploading ${file.name}...`, 'info');
+    updateConnectionState('uploading');
+    
+    fetch('/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        showToast('Upload complete!', 'success');
+        startStreamAt(data.queued_index);
+    })
+    .catch(err => {
+        showToast(`Upload failed: ${err.message}`, 'error');
+        updateConnectionState('error', true);
+    });
+}
+
+uploadDropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadDropzone.classList.add('dragover');
+});
+uploadDropzone.addEventListener('dragleave', () => {
+    uploadDropzone.classList.remove('dragover');
+});
+uploadDropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadDropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+});
+uploadDropzone.addEventListener('click', () => {
+    fileUploadInput.click();
+});
+fileUploadInput.addEventListener('change', (e) => {
+    if (e.target.files.length) handleUpload(e.target.files[0]);
+});
+
+// Filters
+let currentFilters = { contrast: 1.0, gamma: 1.0, brightness: 0, invert: false, sharpness: 0, palette: 'default' };
+let filterSendTimer = null;
+
+function syncFilterUI() {
+    filterContrast.value = currentFilters.contrast;
+    filterGamma.value = currentFilters.gamma;
+    filterBrightness.value = currentFilters.brightness;
+    filterSharpness.value = currentFilters.sharpness;
+    document.getElementById('filter-contrast-val').textContent = Number(currentFilters.contrast).toFixed(2);
+    document.getElementById('filter-gamma-val').textContent = Number(currentFilters.gamma).toFixed(2);
+    document.getElementById('filter-brightness-val').textContent = (currentFilters.brightness > 0 ? '+' : '') + currentFilters.brightness;
+    document.getElementById('filter-sharpness-val').textContent = currentFilters.sharpness;
+    filterInvert.checked = currentFilters.invert;
+    
+    paletteRadios.forEach(r => { r.checked = (r.value === currentFilters.palette); });
+}
+
+(() => {
+    const raw = localStorage.getItem('asciline_filters');
+    if (!raw) return;
+    try {
+        const f = JSON.parse(raw);
+        const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+        currentFilters = {
+            contrast: clamp(parseFloat(f.contrast), 0.1, 3.0) || 1.0,
+            gamma: clamp(parseFloat(f.gamma), 0.1, 3.0) || 1.0,
+            brightness: clamp(parseInt(f.brightness, 10), -100, 100) || 0,
+            sharpness: clamp(parseInt(f.sharpness, 10), 0, 10) || 0,
+            palette: ['default', 'flat', 'block'].includes(f.palette) ? f.palette : 'default',
+            invert: Boolean(f.invert)
+        };
+        syncFilterUI();
+    } catch (_) {}
+})();
+
+function sendFilters() {
+    localStorage.setItem('asciline_filters', JSON.stringify(currentFilters));
+    if (filterSendTimer) clearTimeout(filterSendTimer);
+    filterSendTimer = setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'filter',
+                contrast: currentFilters.contrast,
+                gamma: currentFilters.gamma,
+                brightness: currentFilters.brightness,
+                invert: currentFilters.invert,
+                sharpness: currentFilters.sharpness,
+                palette: currentFilters.palette
+            }));
+        }
+        filterSendTimer = null;
+    }, 60);
+}
+
+['contrast', 'gamma', 'brightness', 'sharpness'].forEach(key => {
+    const el = document.getElementById(`filter-${key}`);
+    const valEl = document.getElementById(`filter-${key}-val`);
+    el.addEventListener('input', () => {
+        let v = parseFloat(el.value);
+        currentFilters[key] = key === 'brightness' || key === 'sharpness' ? parseInt(el.value, 10) : v;
+        
+        let display = v;
+        if (key === 'contrast' || key === 'gamma') display = v.toFixed(2);
+        else if (key === 'brightness') display = (v > 0 ? '+' : '') + v;
+        valEl.textContent = display;
+        sendFilters();
+    });
+});
+
+filterInvert.addEventListener('change', () => {
+    currentFilters.invert = filterInvert.checked;
+    sendFilters();
+});
+
+paletteRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+        currentFilters.palette = radio.value;
+        sendFilters();
+    });
+});
+
+filterReset.addEventListener('click', () => {
+    currentFilters = { contrast: 1.0, gamma: 1.0, brightness: 0, invert: false, sharpness: 0, palette: 'default' };
+    syncFilterUI();
+    sendFilters();
+    showToast('Filters reset', 'info');
+});
+
+filterPixel.addEventListener('change', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const nextMode = filterPixel.checked;
+        const currentAbsTime = getMasterClock();
+        ws.send(JSON.stringify({
+            type: 'reinit',
+            pixel: nextMode,
+            time: currentAbsTime
+        }));
+    } else {
+        // Prevent toggle if not connected
+        filterPixel.checked = pixelMode;
+    }
+});
+
+
+// ── CANVAS SETUP ─────────────────────────────────────────────────────────────
 
 function buildCanvas(cols, rows) {
     gridCols = cols;
     gridRows = rows;
+    perfGrid.textContent = `${cols} × ${rows}`;
 
-    // Sizing and positioning for both layers
     const syncSize = (el) => {
         el.style.width  = container.clientWidth + 'px';
         el.style.height = container.clientHeight + 'px';
@@ -99,20 +421,18 @@ function buildCanvas(cols, rows) {
     };
 
     if (pixelMode) {
-        // ── DOT MODE: 1 canvas pixel = 1 grid cell ──
         canvas.width  = cols;
         canvas.height = rows;
         canvas.style.display = 'block';
         canvas.style.imageRendering = 'pixelated';
         dotImageData = ctx.createImageData(cols, rows);
-        // Pre-fill alpha channel to 255 (fully opaque)
         const d = dotImageData.data;
-        for (let i = 3; i < d.length; i += 4) d[i] = 255;
+        for (let i = 3; i < d.length; i += 4) d[i] = 255; // Alpha
         syncSize(canvas);
-        // Hide selection layer — no text to select in dot mode
         player.style.display = 'none';
+        
+        modeBadgeText.textContent = 'PIXEL MODE';
     } else {
-        // ── STANDARD ASCII MODES (1-5) ──
         canvas.style.imageRendering = '';
         dotImageData = null;
         ctx.font = 'bold 8px Courier New';
@@ -122,22 +442,16 @@ function buildCanvas(cols, rows) {
         canvas.height = rows * charHeight;
         canvas.style.display = 'block';
 
-        // Selection Layer Buffer
         selectionBuffer = new Uint8Array((cols + 1) * rows);
-        for (let r = 0; r < rows; r++) selectionBuffer[r * (cols + 1) + cols] = 10;
+        for (let r = 0; r < rows; r++) selectionBuffer[r * (cols + 1) + cols] = 10; // newline
 
         syncSize(canvas);
 
-        // Selection layer: match canvas object-fit:contain position exactly
-        const containerW = container.clientWidth;
-        const containerH = container.clientHeight;
-        const fitScaleX = containerW / canvas.width;
-        const fitScaleY = containerH / canvas.height;
+        const fitScaleX = container.clientWidth / canvas.width;
+        const fitScaleY = container.clientHeight / canvas.height;
         const fitScale  = Math.min(fitScaleX, fitScaleY);
-        const renderedW = canvas.width  * fitScale;
-        const renderedH = canvas.height * fitScale;
-        const offsetX   = (containerW - renderedW) / 2;
-        const offsetY   = (containerH - renderedH) / 2;
+        const offsetX   = (container.clientWidth - (canvas.width * fitScale)) / 2;
+        const offsetY   = (container.clientHeight - (canvas.height * fitScale)) / 2;
 
         player.style.width  = canvas.width + 'px';
         player.style.height = canvas.height + 'px';
@@ -146,21 +460,29 @@ function buildCanvas(cols, rows) {
         player.style.left = '0';
         player.style.transformOrigin = 'top left';
         player.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${fitScale})`;
-        player.style.fontSize = '8px';
-        player.style.lineHeight = '8px';
 
-        ctx.font = 'bold 8px Courier New';
         ctx.textBaseline = 'top';
         xPos = new Float32Array(cols);
         yPos = new Float32Array(rows);
         for (let c = 0; c < cols; c++) xPos[c] = c * charWidth;
         for (let r = 0; r < rows; r++) yPos[r] = r * charHeight;
+        
+        const modes = { 2: '64 COLORS', 3: '512 COLORS', 4: '32K COLORS', 5: '262K COLORS', 6: '16M ULTRA' };
+        modeBadgeText.textContent = modes[renderMode] || 'B&W ASCII';
     }
+    
+    modeBadge.style.display = 'flex';
+    hudMode.textContent = modeBadgeText.textContent;
 }
 
-// ═══════════════════════════════════════
-//  STARTUP SYNC LOGIC (VIDEO GATE)
-// ═══════════════════════════════════════
+window.addEventListener('resize', () => {
+    if (gridCols > 0 && gridRows > 0) {
+        buildCanvas(gridCols, gridRows);
+    }
+});
+
+// ── STREAM CONTROL ───────────────────────────────────────────────────────────
+
 const beginRendering = () => {
     if (readyToRender) return;
     readyToRender = true;
@@ -169,6 +491,7 @@ const beginRendering = () => {
     lastFpsUpdate = lastRenderTime;
     requestAnimationFrame(renderFrame);
     startBufferReports();
+    hudOverlay.classList.remove('hidden');
 };
 
 const triggerPlaybackStart = (epochToMatch) => {
@@ -178,10 +501,7 @@ const triggerPlaybackStart = (epochToMatch) => {
         return;
     }
     if (audioEl) {
-        // The very first video frame has arrived and is ready.
-        // Now it is safe to start the audio clock.
         audioEl.play().catch(() => {});
-        // Audio Gate: Wait for actual playback so clocks match exactly
         if (audioEl.readyState >= 3) {
             beginRendering();
         } else {
@@ -199,73 +519,52 @@ const triggerPlaybackStart = (epochToMatch) => {
     }
 };
 
-// ═══════════════════════════════════════
-//  STREAM CONTROL
-// ═══════════════════════════════════════
+function startStreamAt(index) {
+    if (ws && ws.readyState !== WebSocket.CLOSED) {
+        ws.onclose = null;
+        ws.close();
+    }
+    if (state !== 'IDLE') finishStream();
+    
+    setTimeout(() => {
+        state = 'IDLE';
+        connectWebSocket(index);
+    }, 80);
+}
 
 function startStream() {
     if (state !== 'IDLE') return;
-    overlay.classList.add('hidden');
-    statusEl.textContent = 'Connecting...';
-    statusEl.style.color = 'var(--accent-color)';
     connectWebSocket();
-}
-
-// Called by the upload widget's "Play Now" button.
-// Closes any existing stream and starts a fresh WS pointing at the given queue index.
-function startStreamAt(index) {
-    // Close existing WS cleanly
-    if (ws && ws.readyState !== WebSocket.CLOSED) {
-        ws.onclose = null; // prevent finishStream loop
-        ws.close();
-    }
-    if (state !== 'IDLE') {
-        finishStream();
-    }
-    // Small delay so finishStream cleanup settles
-    setTimeout(() => {
-        state = 'IDLE';
-        overlay.classList.add('hidden');
-        statusEl.textContent = 'Connecting...';
-        statusEl.style.color = 'var(--accent-color)';
-        connectWebSocket(index);
-    }, 80);
 }
 
 function connectWebSocket(startIndex) {
     frameBuffer.length = 0;
     frameCount = 0;
     currentFps = 0;
-
-    // Audio is loaded later in INIT handler (Audio Ready Gate).
-    // Don't preload here — causes race conditions with vol=0 (204 response).
+    
+    playOverlay.classList.add('hidden');
+    updateConnectionState('connecting');
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     let wsUrl = `${protocol}//${location.host}/ws?codec=adaptive`;
-    if (startIndex !== undefined && startIndex !== null) {
-        wsUrl += `&start_index=${startIndex}`;
-    }
+    if (startIndex !== undefined && startIndex !== null) wsUrl += `&start_index=${startIndex}`;
+    
     ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
+    wsUrlDisplay.value = ws.url;
 
     ws.onmessage = (event) => {
         if (typeof event.data === 'string') {
             if (event.data === 'UPLOAD_READY') {
-                // Server has no video yet — show friendly upload prompt
-                statusEl.textContent = 'UPLOAD A VIDEO BELOW TO BEGIN';
-                statusEl.style.color = 'var(--accent-color)';
-                // Restore the overlay with upload hint
-                overlay.classList.remove('hidden');
-                const overlayText = overlay.querySelector('p');
-                if (overlayText) overlayText.textContent = 'UPLOAD A VIDEO TO BEGIN';
-                const overlaySub = overlay.querySelectorAll('p')[1];
-                if (overlaySub) overlaySub.textContent = 'USE THE UPLOAD PANEL BELOW ↓';
-                // DO NOT close WS — it's polling server-side until a video arrives
+                updateConnectionState('idle');
+                playOverlay.classList.remove('hidden');
+                document.getElementById('overlay-title').textContent = 'READY FOR MEDIA';
+                document.getElementById('overlay-subtitle').textContent = 'Upload a video to begin playback';
                 return;
             }
             if (event.data.startsWith('Error:')) {
-                statusEl.textContent = event.data;
-                statusEl.style.color = '#ff0000';
+                showToast(event.data, 'error');
+                updateConnectionState('error', true);
                 if (ws) ws.close();
                 setTimeout(() => finishStream(), 3000);
                 return;
@@ -276,117 +575,78 @@ function connectWebSocket(startIndex) {
                 frameInterval = 1000 / targetFps;
                 renderMode = parseInt(p[2]);
                 pixelMode = (p.length > 5 && parseInt(p[5]) === 1);
-                const currentQueueIndex = (p.length > 6) ? parseInt(p[6]) : null;
+                currentQueueIdx = (p.length > 6) ? parseInt(p[6]) : 0;
                 duration = (p.length > 7) ? parseFloat(p[7]) : 0;
-                const startOffset = (p.length > 8) ? parseFloat(p[8]) : 0;
-                const isWebcam = (p.length > 9 && parseInt(p[9]) === 1);
-                isWebcamStream = isWebcam;
-                currentQueueIdx = currentQueueIndex !== null ? currentQueueIndex : 0;
+                audioOffset = (p.length > 8) ? parseFloat(p[8]) : 0;
+                isWebcamStream = (p.length > 9 && parseInt(p[9]) === 1);
                 
-                if (seekBar) {
-                    seekBar.max = duration;
-                    seekBar.value = 0;
-                }
-                if (timeTotal) timeTotal.textContent = formatTime(duration);
-                if (timeCurrent) timeCurrent.textContent = "00:00";
-                if (seekPlayed) seekPlayed.style.transform = 'scaleX(0)';
+                // Update UI metadata
+                streamQueueIdx.textContent = currentQueueIdx;
+                metaFps.textContent = targetFps.toFixed(2);
+                metaRes.textContent = `${p[3]} × ${p[4]}`;
+                metaDuration.textContent = formatTime(duration);
+                timeTotal.textContent = formatTime(duration);
+                timeCurrent.textContent = "00:00:00";
                 
-                if (typeof filterPixelBtn !== 'undefined' && filterPixelBtn) {
-                    filterPixelBtn.dataset.active = pixelMode ? 'true' : 'false';
-                    filterPixelBtn.textContent = pixelMode ? 'ON' : 'OFF';
-                    
-                    if (isWebcam) {
-                        filterPixelBtn.disabled = true;
-                        filterPixelBtn.style.opacity = '0.5';
-                        filterPixelBtn.style.cursor = 'not-allowed';
-                        filterPixelBtn.title = 'Pixel mode toggle is disabled during live webcam feed';
-                    } else {
-                        filterPixelBtn.disabled = false;
-                        filterPixelBtn.style.opacity = '1';
-                        filterPixelBtn.style.cursor = 'pointer';
-                        filterPixelBtn.title = '';
-                    }
-                }
+                seekSlider.max = duration;
+                seekSlider.value = 0;
+                seekPlayed.style.transform = 'scaleX(0)';
+                
+                filterPixel.checked = pixelMode;
+                filterPixel.disabled = isWebcamStream;
 
-                audioOffset = startOffset;
                 frameBuffer.length = 0;
                 framesInFlight = 0;
-                streamEpoch++; // Invalidate any pending audio loads
-                scrubMeta = null; // reset so new video gets fresh thumbnails
-                // Lazy-load hover thumbnails: only fetch on first hover
-                const qIdx = currentQueueIdx;
-                if (seekWrap && !scrubMeta) {
+                streamEpoch++;
+                scrubMeta = null;
+                
+                if (!scrubMeta && !isWebcamStream) {
                     seekWrap.addEventListener('mouseenter', () => {
-                        if (!scrubMeta) setupScrub(qIdx);
+                        if (!scrubMeta) setupScrub(currentQueueIdx);
                     }, { once: true });
                 }
                 
                 buildCanvas(parseInt(p[3]), parseInt(p[4]));
 
-                // Initialize adaptive codec decoder (pixel=3 bytes, ASCII color=4 bytes)
-                // Pixel mode explicitly bypasses the codec for maximum raw throughput
                 if (typeof AscilineCodec !== 'undefined' && renderMode > 1 && !pixelMode) {
                     codecDecoder = AscilineCodec.makeDecoder(4);
                 } else {
                     codecDecoder = null;
                 }
 
-                // Sequential decode queue — reset on each new stream so deltas
-                // never race ahead of keyframes across playlist transitions.
                 decodeQueue = Promise.resolve();
-
-                // ── AUDIO READY GATE ──
-                // Hold rendering until audio actually starts. Without this, the
-                // master clock (audioEl.currentTime) snaps forward the moment audio
-                // loads, making renderFrame think it's behind and draining the whole
-                // buffer in one go — visible as a sudden freeze on heavy footage.
-                // The decodeQueue above already prevents delta/keyframe races, so
-                // restoring the gate does NOT bring back the old startup stutter.
                 const wasPaused = (state === 'PAUSED');
                 readyToRender = false;
                 if (!wasPaused) state = 'PLAYING';
 
+                if (audioEl && !isWebcamStream) {
+                    audioEl.pause();
+                    audioEl.src = `/audio?v=${currentQueueIdx}&start=${audioOffset}&t=${Date.now()}`;
+                    audioEl.volume = volumeSlider.value;
+                    audioEl.load();
+                }
 
-
-                    if (audioEl && !isWebcam) {
-                        audioEl.pause();
-                        const qs = currentQueueIndex !== null ? `v=${currentQueueIndex}&` : '';
-                        const st = startOffset > 0 ? `start=${startOffset}&` : '';
-                        audioEl.src = `/audio?${qs}${st}t=${Date.now()}`;
-                        audioEl.volume = volumeSlider ? volumeSlider.value : 1.0;
-                        audioEl.load();
-                        // VIDEO GATE: Do not play audio or start rendering yet!
-                        // We will wait until the very first video frame has arrived
-                        // and been decoded into the frameBuffer.
-                    }
-
-                // Re-push prefs after INIT — server filter state starts at defaults
-                // on each new stream, so a restored UI alone would not affect frames.
                 sendFilters();
-
+                updateConnectionState('playing');
+                iconPlay.style.display = 'none';
+                iconPause.style.display = 'block';
                 return;
-
             }
             
-            // Mode 1: Text Frame with Timestamp
+            // Mode 1: Text Frame
             const text = event.data;
             const newlineIdx = text.indexOf('\n');
             const frameIndex = parseInt(text.substring(0, newlineIdx));
-            const frameTime = frameIndex / targetFps;
-            const frameData = text.substring(newlineIdx + 1);
-            frameBuffer.push({ data: frameData, time: frameTime });
+            frameBuffer.push({ data: text.substring(newlineIdx + 1), time: frameIndex / targetFps });
             triggerPlaybackStart(streamEpoch);
         } else {
-            // Binary Frames — decoded via adaptive codec (raw/zlib/delta)
+            // Binary Frames
             if (codecDecoder) {
                 framesInFlight++;
-                // Chain onto the sequential queue so deltas always patch the
-                // correct preceding frame, never racing ahead of a keyframe.
                 decodeQueue = decodeQueue.then(() =>
                     codecDecoder.decode(event.data).then(({ frameIndex, frame }) => {
                         framesInFlight--;
-                        const frameTime = frameIndex / targetFps;
-                        frameBuffer.push({ data: frame, time: frameTime });
+                        frameBuffer.push({ data: frame, time: frameIndex / targetFps });
                         triggerPlaybackStart(streamEpoch);
                     }).catch(e => {
                         framesInFlight--;
@@ -394,13 +654,9 @@ function connectWebSocket(startIndex) {
                     })
                 );
             } else {
-                // Fallback: legacy 4-byte header
-                const buffer = event.data;
-                const view = new DataView(buffer);
+                const view = new DataView(event.data);
                 const frameIndex = view.getUint32(0, false);
-                const frameTime = frameIndex / targetFps;
-                const frameData = new Uint8Array(buffer, 4);
-                frameBuffer.push({ data: frameData, time: frameTime });
+                frameBuffer.push({ data: new Uint8Array(event.data, 4), time: frameIndex / targetFps });
                 triggerPlaybackStart(streamEpoch);
             }
         }
@@ -408,32 +664,65 @@ function connectWebSocket(startIndex) {
         while (frameBuffer.length > BUFFER_SIZE * 5) frameBuffer.shift();
     };
 
-    ws.onopen = () => { statusEl.textContent = 'Buffering...'; };
+    ws.onopen = () => {
+        updateConnectionState('buffering');
+    };
 
     ws.onclose = (event) => {
         if (state === 'PLAYING' || state === 'PAUSED') {
-            // 1000 = server closed cleanly after finishing the queue. Anything
-            // else (1006 dropped TCP, 1001/1012 server shutdown) is a real drop.
             const ended = event.code === 1000;
-            if (!ended) showToast('Connection lost.');
-            statusEl.textContent = ended ? 'Stream Ended.' : 'Connection lost.';
-            statusEl.style.color = '#888';
+            if (!ended) showToast('Connection lost', 'warning');
+            updateConnectionState('disconnected', !ended);
             if (audioEl) audioEl.pause();
             setTimeout(() => finishStream(), 800);
         }
     };
 
     ws.onerror = () => {
-        showToast('Connection lost.');
-        statusEl.textContent = 'Connection Error!';
-        statusEl.style.color = '#ff0000';
+        showToast('Connection error', 'error');
+        updateConnectionState('error', true);
         setTimeout(() => finishStream(), 2000);
     };
 }
 
-// ═══════════════════════════════════════
-//  RENDER LOOP
-// ═══════════════════════════════════════
+// ── RENDER LOOP ──────────────────────────────────────────────────────────────
+
+function drawSparkline() {
+    const w = sparklineCanvas.width;
+    const h = sparklineCanvas.height;
+    sparklineCtx.clearRect(0, 0, w, h);
+    
+    if (sparklineHistory.length === 0) return;
+    
+    const maxVal = Math.max(...sparklineHistory, targetFps) * 1.1;
+    const stepX = w / (sparklineHistory.length - 1);
+    
+    sparklineCtx.beginPath();
+    sparklineCtx.moveTo(0, h);
+    
+    for (let i = 0; i < sparklineHistory.length; i++) {
+        const val = sparklineHistory[i];
+        const x = i * stepX;
+        const y = h - (val / maxVal) * h;
+        sparklineCtx.lineTo(x, y);
+    }
+    
+    sparklineCtx.lineTo(w, h);
+    sparklineCtx.fillStyle = 'rgba(74, 158, 255, 0.2)';
+    sparklineCtx.fill();
+    
+    sparklineCtx.beginPath();
+    for (let i = 0; i < sparklineHistory.length; i++) {
+        const val = sparklineHistory[i];
+        const x = i * stepX;
+        const y = h - (val / maxVal) * h;
+        if (i === 0) sparklineCtx.moveTo(x, y);
+        else sparklineCtx.lineTo(x, y);
+    }
+    sparklineCtx.strokeStyle = '#4a9eff';
+    sparklineCtx.lineWidth = 1.5;
+    sparklineCtx.stroke();
+}
 
 function renderFrame(now) {
     if (state !== 'PLAYING' || !readyToRender) return;
@@ -441,17 +730,22 @@ function renderFrame(now) {
 
     const masterClock = getMasterClock();
 
-    if (!isSeeking && seekBar) {
-        if (now - lastUiUpdateTime >= 100) {
-            seekBar.value = masterClock;
-            if (seekPlayed && duration) seekPlayed.style.transform = `scaleX(${Math.min(1, masterClock / duration)})`;
-            lastUiUpdateTime = now;
+    // UI Updates
+    if (now - lastUiUpdateTime >= 100) {
+        if (!isSeeking) {
+            seekSlider.value = masterClock;
+            if (duration) seekPlayed.style.transform = `scaleX(${Math.min(1, masterClock / duration)})`;
+            
+            const formattedTime = formatTime(masterClock);
+            if (formattedTime !== lastFormattedTime) {
+                timeCurrent.textContent = formattedTime;
+                lastFormattedTime = formattedTime;
+            }
         }
-        const formattedTime = formatTime(masterClock);
-        if (timeCurrent && formattedTime !== lastFormattedTime) {
-            timeCurrent.textContent = formattedTime;
-            lastFormattedTime = formattedTime;
-        }
+        perfBuffer.textContent = frameBuffer.length;
+        perfInflight.textContent = framesInFlight;
+        hudBuf.textContent = frameBuffer.length;
+        lastUiUpdateTime = now;
     }
 
     if (frameBuffer.length === 0) return;
@@ -459,66 +753,57 @@ function renderFrame(now) {
     let frameObj;
 
     if (isWebcamStream) {
-        // ZERO-LATENCY MODE: Grab the absolute newest frame, trash all older ones.
         frameObj = frameBuffer.pop();
-        frameBuffer.length = 0; // Empty the buffer
+        frameBuffer.length = 0;
     } else {
-        // A/V Sync: Drop frames that are too far behind the master clock (catch up)
         while (frameBuffer.length > 0 && frameBuffer[0].time < masterClock - 0.1) {
             frameBuffer.shift();
         }
-        
         if (frameBuffer.length === 0) return;
-
-        // A/V Sync: Wait if the frame is in the future
-        if (frameBuffer[0].time > masterClock + 0.05) {
-            return;
-        }
-
+        if (frameBuffer[0].time > masterClock + 0.05) return;
         frameObj = frameBuffer.shift();
     }
 
     const frame = frameObj.data;
-
     frameCount++;
+
+    // FPS Counter
     if (now - lastFpsUpdate >= 1000) {
         currentFps = frameCount;
         frameCount = 0;
         lastFpsUpdate = now;
-        const modes = { 2: '64 Color', 3: '512 Color', 4: '32K Color', 5: '262K Color', 6: '16M Ultra' };
-        const label = (modes[renderMode] || 'B&W') + (pixelMode ? ' PIXEL' : '');
-        statusEl.textContent = `FPS: ${currentFps}/${Math.round(targetFps)} | Buf: ${frameBuffer.length} | ${label}`;
+        
+        perfFps.textContent = `${currentFps} / ${Math.round(targetFps)}`;
+        hudFps.textContent = currentFps;
+        
+        sparklineHistory.shift();
+        sparklineHistory.push(currentFps);
+        drawSparkline();
     }
 
     lastRenderTime = now;
 
+    // Render Logic
     if (pixelMode) {
-        // ── ZERO-COPY PIXEL MODE ──
-        // Server sends raw BGR (3 bytes/pixel). We swap B↔R here.
-        const view = frame; // Already a Uint8Array
+        const view = frame;
         const data = dotImageData.data;
-        // view: [B,G,R, B,G,R, ...] → data: [R,G,B,A, R,G,B,A, ...]
         for (let src = 0, dst = 0; src < view.length; src += 3, dst += 4) {
-            data[dst]     = view[src + 2]; // R (from BGR)
+            data[dst]     = view[src + 2]; // R
             data[dst + 1] = view[src + 1]; // G
             data[dst + 2] = view[src];     // B
-            // Alpha already set to 255 in buildCanvas
         }
         ctx.putImageData(dotImageData, 0, 0);
     } else if (renderMode === 1) {
         player.style.display = 'block';
-        player.style.color = '#fff';
+        player.style.color = 'var(--text-primary)';
         player.textContent = frame;
     } else {
-        // ── STANDARD COLOR MODES (2-5): fillText per character ──
-        const view = frame; // Already a Uint8Array
+        const view = frame;
         
-        // 1. Draw Canvas (Background)
-        ctx.fillStyle = '#050505';
+        // Background
+        ctx.fillStyle = '#141417'; // Match --bg-base
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.font = 'bold 8px Courier New';
-        ctx.textBaseline = 'top';
-
+        
         let col = 0, row = 0, prevPacked = -1;
         for (let idx = 0; idx < view.length; idx += 4) {
             const packed = (view[idx+1] << 16) | (view[idx+2] << 8) | view[idx+3];
@@ -527,33 +812,17 @@ function renderFrame(now) {
                 prevPacked = packed;
             }
             ctx.fillText(CHAR_LUT[view[idx]], xPos[col], yPos[row]);
-            
-            // Fill Selection Buffer (char code is at view[idx])
             selectionBuffer[row * (gridCols + 1) + col] = view[idx];
 
             col++;
             if (col >= gridCols) { col = 0; row++; }
         }
 
-        // 2. Update Selection Layer (Foreground)
         player.style.display = 'block';
         player.style.color = 'transparent';
         player.textContent = textDecoder.decode(selectionBuffer);
     }
 }
-
-// ═══════════════════════════════════════
-//  CLEANUP
-// ═══════════════════════════════════════
-
-// ── BACKPRESSURE REPORTING ──
-// Tell the server how many frames are currently stuck in the decode pipeline
-// (framesInFlight). When it grows, the client is CPU-bound, and the server 
-// drops frames instead of making us inflate+delta-patch them.
-let framesInFlight = 0;
-// Sequential promise chain that serialises async codec decodes so a fast
-// Delta never races ahead of a slow Keyframe/ZLIB inflate.
-let decodeQueue = Promise.resolve();
 
 function startBufferReports() {
     stopBufferReports();
@@ -568,89 +837,65 @@ function stopBufferReports() {
     if (bufferReportTimer) { clearInterval(bufferReportTimer); bufferReportTimer = null; }
 }
 
-// Unexpected disconnect toast. Lazy-created; safe to call twice (onerror+onclose).
-let toastHideTimer = null;
-function showToast(msg) {
-    let el = document.getElementById('connection-toast');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'connection-toast';
-        el.className = 'toast';
-        el.setAttribute('role', 'status');
-        el.setAttribute('aria-live', 'polite');
-        container.appendChild(el);
-    }
-    el.textContent = msg;
-    el.classList.add('show');
-    clearTimeout(toastHideTimer);
-    toastHideTimer = setTimeout(() => el.classList.remove('show'), 4000);
-}
-
 function finishStream() {
     state = 'IDLE';
     stopBufferReports();
     if (ws) { ws.onclose = null; ws.close(); ws = null; }
     if (audioEl) { audioEl.pause(); audioEl.src = ''; }
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     player.textContent = '';
     player.style.display = 'none';
     container.classList.remove('paused');
-    overlay.classList.remove('hidden');
-    statusEl.textContent = 'Ready';
-    statusEl.style.color = 'rgba(255,255,255,0.6)';
-    if (playPauseBtn) playPauseBtn.textContent = '▶';
+    
+    playOverlay.classList.remove('hidden');
+    document.getElementById('overlay-title').textContent = 'INITIALIZE UPLINK';
+    document.getElementById('overlay-subtitle').textContent = 'Click to connect to stream';
+    modeBadge.style.display = 'none';
+    hudOverlay.classList.add('hidden');
+    
+    iconPlay.style.display = 'block';
+    iconPause.style.display = 'none';
+    
+    updateConnectionState('disconnected');
+    
     readyToRender = false;
     pauseStartTime = 0;
     frameBuffer.length = 0;
 }
 
-// ═══════════════════════════════════════
-//  PAUSE / RESUME
-// ═══════════════════════════════════════
+// ── PLAYBACK CONTROLS ────────────────────────────────────────────────────────
 
 function togglePause() {
-    if (isWebcamStream) return; // Can't pause a live broadcast!
+    if (isWebcamStream) {
+        showToast('Cannot pause live webcam feed', 'warning');
+        return;
+    }
     if (state === 'PLAYING') {
         state = 'PAUSED';
         pauseStartTime = performance.now();
-        
-        if (audioEl && !audioEl.paused) {
-            audioEl.pause();
-        }
+        if (audioEl && !audioEl.paused) audioEl.pause();
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'pause', paused: true }));
         }
         container.classList.add('paused');
-        if (playPauseBtn) playPauseBtn.textContent = '▶';
-        statusEl.textContent = '❚❚ PAUSED';
-        statusEl.style.color = '#888';
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
     } else if (state === 'PAUSED') {
         state = 'PLAYING';
-        readyToRender = true; // resuming an existing stream — don't block on audio gate
-        
-        // Update streamStartTime to account for the pause duration
-        const pauseDuration = performance.now() - pauseStartTime;
-        streamStartTime += pauseDuration;
+        readyToRender = true;
+        streamStartTime += (performance.now() - pauseStartTime);
         pauseStartTime = 0;
-        
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'pause', paused: false }));
         }
-        
-        // Restore audio playback
-        if (audioEl && audioEl.paused) {
-            audioEl.play().catch(() => {});
-        }
-
-        // Flush stale buffer frames — A/V sync catch-up handles the rest
+        if (audioEl && audioEl.paused) audioEl.play().catch(() => {});
         frameBuffer.length = 0;
         
         container.classList.remove('paused');
-        statusEl.textContent = 'Resuming...';
-        statusEl.style.color = 'var(--accent-color)';
+        iconPlay.style.display = 'none';
+        iconPause.style.display = 'block';
         
-        // Restart render loop
-        if (playPauseBtn) playPauseBtn.textContent = '❚❚';
         lastRenderTime = performance.now();
         lastFpsUpdate = performance.now();
         frameCount = 0;
@@ -658,27 +903,19 @@ function togglePause() {
     }
 }
 
-if (playPauseBtn) {
-    playPauseBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (state === 'IDLE') startStream();
-        else togglePause();
-    });
-}
-
-// Seek to an absolute time. Reuses the live seek (tell the server, then reload
-// the audio from that point). Shared by the slider and the skip buttons.
 function doSeek(targetSec) {
-    if (isWebcamStream) return; // Can't seek a live broadcast!
+    if (isWebcamStream) {
+        showToast('Cannot seek live webcam feed', 'warning');
+        return;
+    }
     if (duration) targetSec = Math.max(0, Math.min(targetSec, duration));
-    if (seekBar) seekBar.value = targetSec;
-    if (seekPlayed && duration) seekPlayed.style.transform = `scaleX(${Math.min(1, targetSec / duration)})`;
+    seekSlider.value = targetSec;
+    if (duration) seekPlayed.style.transform = `scaleX(${Math.min(1, targetSec / duration)})`;
 
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'seek', time: targetSec }));
     }
 
-    // Drop stale frames, then restart audio from the seek point
     frameBuffer.length = 0;
     audioOffset = targetSec;
 
@@ -708,10 +945,7 @@ function doSeek(targetSec) {
                     if (myEpoch !== streamEpoch) return;
                     onAudioStart();
                 }, { once: true });
-                setTimeout(() => {
-                    if (myEpoch !== streamEpoch) return;
-                    onAudioStart();
-                }, 500);
+                setTimeout(() => { if (myEpoch === streamEpoch) onAudioStart(); }, 500);
             }
         } else {
             streamStartTime = performance.now() - (targetSec * 1000.0);
@@ -724,8 +958,6 @@ function doSeek(targetSec) {
 }
 
 function getMasterClock() {
-    // audioEl.currentTime is frozen when paused — correct in both states.
-    // Only fall back to the wall-clock estimate when audio hasn't loaded yet.
     if (audioEl && audioEl.readyState >= 1) return audioEl.currentTime + audioOffset;
     return (performance.now() - streamStartTime) / 1000.0;
 }
@@ -736,300 +968,126 @@ function skip(delta) {
     doSeek(getMasterClock() + delta);
 }
 
-// Pull the hover thumbnail sprite for this video (built lazily by the server).
+// ── SCRUB / TIMELINE ─────────────────────────────────────────────────────────
+
 function setupScrub(v) {
     scrubMeta = null;
-    if (seekPreviewImg) seekPreviewImg.style.backgroundImage = '';
-    fetch('/scrub?v=' + (v || 0) + '&t=' + Date.now()).then(r => r.json()).then(m => {
-        if (!m || !m.available || !seekPreviewImg) return;
+    seekPreviewImg.style.backgroundImage = '';
+    fetch(`/scrub?v=${v || 0}&t=${Date.now()}`).then(r => r.json()).then(m => {
+        if (!m || !m.available) return;
         scrubMeta = m;
         seekPreviewImg.style.width = m.cellW + 'px';
         seekPreviewImg.style.height = m.cellH + 'px';
         seekPreviewImg.style.backgroundImage = `url(${m.sprite})`;
-        seekPreviewImg.style.backgroundSize = (m.gridCols * m.cellW) + 'px ' + (m.gridRows * m.cellH) + 'px';
+        seekPreviewImg.style.backgroundSize = `${m.gridCols * m.cellW}px ${m.gridRows * m.cellH}px`;
     }).catch(() => {});
 }
 
-function onSeekHover(e) {
-    if (!scrubMeta || !duration || !seekWrap) return;
+seekWrap.addEventListener('mousemove', (e) => {
+    if (!scrubMeta || !duration) return;
     const rect = seekWrap.getBoundingClientRect();
     const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const time = (x / rect.width) * duration;
+    
     const idx = Math.max(0, Math.min(Math.floor(time / scrubMeta.interval), scrubMeta.count - 1));
     const col = idx % scrubMeta.gridCols, row = Math.floor(idx / scrubMeta.gridCols);
+    
     seekPreviewImg.style.backgroundPosition = `-${col * scrubMeta.cellW}px -${row * scrubMeta.cellH}px`;
     seekPreviewTime.textContent = formatTime(time);
+    
     const half = scrubMeta.cellW / 2;
     seekPreview.style.left = Math.max(half, Math.min(x, rect.width - half)) + 'px';
     seekPreview.classList.add('show');
-}
+});
 
-if (seekBar) {
-    seekBar.addEventListener('input', () => {
-        isSeeking = true;
-        if (timeCurrent) timeCurrent.textContent = formatTime(seekBar.value);
-    });
-    seekBar.addEventListener('change', () => {
-        doSeek(parseFloat(seekBar.value));
-        isSeeking = false;
-    });
-}
+seekWrap.addEventListener('mouseleave', () => {
+    seekPreview.classList.remove('show');
+});
 
-if (btnBack) btnBack.addEventListener('click', (e) => { e.stopPropagation(); skip(-10); });
-if (btnFwd)  btnFwd.addEventListener('click', (e) => { e.stopPropagation(); skip(10); });
+seekSlider.addEventListener('input', () => {
+    isSeeking = true;
+    timeCurrent.textContent = formatTime(seekSlider.value);
+    if (duration) seekPlayed.style.transform = `scaleX(${Math.min(1, seekSlider.value / duration)})`;
+});
 
-if (seekWrap) {
-    seekWrap.addEventListener('mousemove', onSeekHover);
-    seekWrap.addEventListener('mouseleave', () => { if (seekPreview) seekPreview.classList.remove('show'); });
-}
+seekSlider.addEventListener('change', () => {
+    doSeek(parseFloat(seekSlider.value));
+    isSeeking = false;
+});
 
-// ── EVENT LISTENERS ──
-overlay.addEventListener('click', (e) => {
+
+// ── EVENT BINDINGS ───────────────────────────────────────────────────────────
+
+playOverlay.addEventListener('click', (e) => {
     e.stopPropagation();
     startStream();
 });
 
-// ── PAUSE TOGGLE (click on player area) ──
 container.addEventListener('click', (e) => {
     if (e.target.closest('#play-overlay')) return;
     if (window.getSelection().toString().length > 0) return;
     togglePause();
 });
 
-// ── KEYBOARD: Space to pause, Arrows to seek, F for filters ──
+playPauseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (state === 'IDLE') startStream();
+    else togglePause();
+});
+
+btnBack.addEventListener('click', (e) => { e.stopPropagation(); skip(-10); });
+btnFwd.addEventListener('click', (e) => { e.stopPropagation(); skip(10); });
+
+btnPrev.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (currentQueueIdx > 0) startStreamAt(currentQueueIdx - 1);
+    else showToast('Already at start of playlist', 'info');
+});
+
+btnNext.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startStreamAt(currentQueueIdx + 1);
+});
+
+btnStreamConnect.addEventListener('click', () => {
+    startStream();
+});
+
+btnStreamDisconnect.addEventListener('click', () => {
+    if (ws) ws.close();
+    finishStream();
+});
+
+btnConnectUrl.addEventListener('click', () => {
+    const val = urlInput.value.trim();
+    if (!val) {
+        showToast('Enter a URL first', 'warning');
+        return;
+    }
+    // Simplistic backend connection - we assume URL handling relies on backend queue.
+    // ASCILINE backend natively uses playlist.json for URLs.
+    showToast('Direct URL connection not yet implemented in backend. Use file upload.', 'warning');
+});
+
 document.addEventListener('keydown', (e) => {
+    // Ignore if typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
     if (state === 'PLAYING' || state === 'PAUSED') {
         if (e.code === 'Space') {
             e.preventDefault();
             togglePause();
         } else if (e.code === 'ArrowRight') {
             e.preventDefault();
-            if (btnFwd) btnFwd.click(); // Trigger forward 10s logic
+            skip(10);
         } else if (e.code === 'ArrowLeft') {
             e.preventDefault();
-            if (btnBack) btnBack.click(); // Trigger backward 10s logic
+            skip(-10);
         }
     }
 });
 
-const PREF_VOLUME = 'asciline_volume';
-const PREF_FILTERS = 'asciline_filters';
-
-if (volumeSlider) {
-    const savedVol = localStorage.getItem(PREF_VOLUME);
-    if (savedVol !== null) {
-        const vol = Math.min(1, Math.max(0, parseFloat(savedVol)));
-        if (!Number.isNaN(vol)) {
-            volumeSlider.value = vol;
-            if (audioEl) audioEl.volume = vol;
-        }
-    }
-    volumeSlider.addEventListener('input', () => {
-        if (audioEl) audioEl.volume = volumeSlider.value;
-        localStorage.setItem(PREF_VOLUME, volumeSlider.value);
-    });
-}
-
-window.addEventListener('resize', () => {
-    const syncSize = (el) => {
-        if (!el) return;
-        el.style.width  = container.clientWidth + 'px';
-        el.style.height = container.clientHeight + 'px';
-    };
-    syncSize(canvas);
-    // Re-apply the same contain-fit transform logic as buildCanvas for the selection layer
-    if (!pixelMode && gridCols > 0 && gridRows > 0) {
-        const containerW = container.clientWidth;
-        const containerH = container.clientHeight;
-        const fitScaleX = containerW / canvas.width;
-        const fitScaleY = containerH / canvas.height;
-        const fitScale  = Math.min(fitScaleX, fitScaleY);
-        const renderedW = canvas.width  * fitScale;
-        const renderedH = canvas.height * fitScale;
-        const offsetX   = (containerW - renderedW) / 2;
-        const offsetY   = (containerH - renderedH) / 2;
-        player.style.transformOrigin = 'top left';
-        player.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${fitScale})`;
-    }
-});
-
-// ═══════════════════════════════════════
-//  FILTER MENU (Contrast / Gamma / Brightness / Invert / Palette)
-// ═══════════════════════════════════════
-
-const filterMenu       = document.getElementById('filter-menu');
-const btnFilters       = document.getElementById('btn-filters');
-const filterClose      = document.getElementById('filter-close');
-const filterContrast   = document.getElementById('filter-contrast');
-const filterGamma      = document.getElementById('filter-gamma');
-const filterBrightness = document.getElementById('filter-brightness');
-const filterSharpness  = document.getElementById('filter-sharpness');
-const filterInvertBtn  = document.getElementById('filter-invert');
-const filterPixelBtn   = document.getElementById('filter-pixel');
-const contrastVal      = document.getElementById('filter-contrast-val');
-const gammaVal         = document.getElementById('filter-gamma-val');
-const brightnessVal    = document.getElementById('filter-brightness-val');
-const sharpnessVal     = document.getElementById('filter-sharpness-val');
-const filterReset      = document.getElementById('filter-reset');
-const paletteRadios    = document.querySelectorAll('input[name="palette"]');
-
-let currentFilters = { contrast: 1.0, gamma: 1.0, brightness: 0, invert: false, sharpness: 0, palette: 'default' };
-let filterSendTimer = null;
-
-function syncFilterUI() {
-    if (filterContrast)   filterContrast.value = currentFilters.contrast;
-    if (filterGamma)      filterGamma.value = currentFilters.gamma;
-    if (filterBrightness) filterBrightness.value = currentFilters.brightness;
-    if (filterSharpness)  filterSharpness.value = currentFilters.sharpness;
-    if (contrastVal)      contrastVal.textContent = Number(currentFilters.contrast).toFixed(2);
-    if (gammaVal)         gammaVal.textContent = Number(currentFilters.gamma).toFixed(2);
-    if (brightnessVal) {
-        const v = currentFilters.brightness;
-        brightnessVal.textContent = (v > 0 ? '+' : '') + v;
-    }
-    if (sharpnessVal) sharpnessVal.textContent = String(currentFilters.sharpness);
-    if (filterInvertBtn) {
-        filterInvertBtn.dataset.active = currentFilters.invert ? 'true' : 'false';
-        filterInvertBtn.textContent = currentFilters.invert ? 'ON' : 'OFF';
-    }
-    paletteRadios.forEach(r => { r.checked = (r.value === currentFilters.palette); });
-}
-
-// Restore filter prefs before any user interaction (WS re-apply happens on INIT).
-(() => {
-    const raw = localStorage.getItem(PREF_FILTERS);
-    if (!raw) return;
-    try {
-        const f = JSON.parse(raw);
-        const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
-        const contrast = clamp(parseFloat(f.contrast), 0.1, 3.0);
-        const gamma = clamp(parseFloat(f.gamma), 0.1, 3.0);
-        const brightness = clamp(parseInt(f.brightness, 10), -100, 100);
-        const sharpness = clamp(parseInt(f.sharpness, 10), 0, 10);
-        const palette = ['default', 'flat', 'block'].includes(f.palette) ? f.palette : 'default';
-        if ([contrast, gamma, brightness, sharpness].some(Number.isNaN)) return;
-        currentFilters = {
-            contrast, gamma, brightness, sharpness, palette,
-            invert: Boolean(f.invert)
-        };
-        syncFilterUI();
-    } catch (_) { /* ignore corrupt prefs */ }
-})();
-
-function toggleFilterMenu() {
-    if (filterMenu) filterMenu.classList.toggle('open');
-}
-
-if (btnFilters) btnFilters.addEventListener('click', (e) => { e.stopPropagation(); toggleFilterMenu(); });
-if (filterClose) filterClose.addEventListener('click', (e) => { e.stopPropagation(); toggleFilterMenu(); });
-
-// Prevent clicks inside the filter menu from toggling pause
-if (filterMenu) filterMenu.addEventListener('click', (e) => e.stopPropagation());
-
-// Debounced filter send — batches rapid slider drags into one WS message
-function sendFilters() {
-    localStorage.setItem(PREF_FILTERS, JSON.stringify(currentFilters));
-    if (filterSendTimer) clearTimeout(filterSendTimer);
-    filterSendTimer = setTimeout(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type:       'filter',
-                contrast:   currentFilters.contrast,
-                gamma:      currentFilters.gamma,
-                brightness: currentFilters.brightness,
-                invert:     currentFilters.invert,
-                sharpness:  currentFilters.sharpness,
-                palette:    currentFilters.palette
-            }));
-        }
-        filterSendTimer = null;
-    }, 60);
-}
-
-if (filterContrast) {
-    filterContrast.addEventListener('input', () => {
-        currentFilters.contrast = parseFloat(filterContrast.value);
-        if (contrastVal) contrastVal.textContent = currentFilters.contrast.toFixed(2);
-        sendFilters();
-    });
-}
-
-if (filterGamma) {
-    filterGamma.addEventListener('input', () => {
-        currentFilters.gamma = parseFloat(filterGamma.value);
-        if (gammaVal) gammaVal.textContent = currentFilters.gamma.toFixed(2);
-        sendFilters();
-    });
-}
-
-if (filterBrightness) {
-    filterBrightness.addEventListener('input', () => {
-        currentFilters.brightness = parseInt(filterBrightness.value, 10);
-        if (brightnessVal) {
-            const v = currentFilters.brightness;
-            brightnessVal.textContent = (v > 0 ? '+' : '') + v;
-        }
-        sendFilters();
-    });
-}
-
-if (filterSharpness) {
-    filterSharpness.addEventListener('input', () => {
-        currentFilters.sharpness = parseInt(filterSharpness.value, 10);
-        if (sharpnessVal) sharpnessVal.textContent = currentFilters.sharpness;
-        sendFilters();
-    });
-}
-
-if (filterInvertBtn) {
-    filterInvertBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        currentFilters.invert = !currentFilters.invert;
-        filterInvertBtn.dataset.active = currentFilters.invert ? 'true' : 'false';
-        filterInvertBtn.textContent = currentFilters.invert ? 'ON' : 'OFF';
-        sendFilters();
-    });
-}
-
-if (filterPixelBtn) {
-    filterPixelBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            const nextMode = !pixelMode;
-            filterPixelBtn.dataset.active = nextMode ? 'true' : 'false';
-            filterPixelBtn.textContent = nextMode ? 'ON' : 'OFF';
-            const currentAbsTime = getMasterClock();
-            ws.send(JSON.stringify({
-                type: 'reinit',
-                pixel: nextMode,
-                time: currentAbsTime
-            }));
-        }
-    });
-}
-
-paletteRadios.forEach(radio => {
-    radio.addEventListener('change', () => {
-        currentFilters.palette = radio.value;
-        sendFilters();
-    });
-});
-
-if (filterReset) {
-    filterReset.addEventListener('click', (e) => {
-        e.stopPropagation();
-        currentFilters = { contrast: 1.0, gamma: 1.0, brightness: 0, invert: false, sharpness: 0, palette: 'default' };
-        syncFilterUI();
-        sendFilters();
-    });
-}
-
-// Keyboard shortcut: 'F' to toggle filter menu
-document.addEventListener('keydown', (e) => {
-    if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (state === 'PLAYING' || state === 'PAUSED') {
-            e.preventDefault();
-            toggleFilterMenu();
-        }
-    }
-});
+// Init layout
+sparklineCanvas.width = sparklineCanvas.clientWidth * window.devicePixelRatio;
+sparklineCanvas.height = sparklineCanvas.clientHeight * window.devicePixelRatio;
+sparklineCtx.scale(window.devicePixelRatio, window.devicePixelRatio);

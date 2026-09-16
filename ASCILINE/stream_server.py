@@ -264,12 +264,8 @@ async def serve_static(filename: str):
 
 @app.get("/")
 async def root():
-    """Serves the Production Frontend-v2 UI to the client."""
-    dist_index = os.path.join(BASE_DIR, "frontend-v2", "dist", "index.html")
-    if os.path.exists(dist_index):
-        with open(dist_index, "r", encoding="utf-8") as f:
-            return HTMLResponse(f.read())
-    return HTMLResponse("<h1>Error: frontend-v2/dist/index.html not found. Run npm run build.</h1>")
+    """Serves the Frontend (HTML/JS/CSS) file to the client."""
+    return HTMLResponse(get_html_content())
 
 def get_html_content():
     html_path = os.path.join(os.path.dirname(__file__), "index.html")
