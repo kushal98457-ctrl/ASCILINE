@@ -1,20 +1,15 @@
 name: ASCILINE CI
 
-# NOTE: This pipeline is currently codec-focused.
-# It verifies Python↔JS bit-exact correctness across all codec tags (RAW, ZLIB, DELTA,
-# RLE_FULL, DCT) and runs the existing pytest suite.
-# What is NOT yet covered: WebSocket frame streaming, live playback sequencing,
-# backpressure/jitter timing, and end-to-end server integration.
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # Allows manual trigger from the GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
-  test:
+  python-test:
+    name: Python CI & Codec Verification
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +20,7 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Set up Node.js
+    - name: Set up Node.js (for vector validation)
       uses: actions/setup-node@v4
       with:
         node-version: '20'
@@ -36,13 +31,13 @@ jobs:
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest numpy opencv-python aiohttp Pillow fastapi uvicorn websockets yt-dlp
+        pip install -r requirements-dev.txt
 
     - name: Run Flake8 (Fatal Errors Only)
-      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      run: flake8 . --count --select=E9,F63,F7,F82,F811,F841,F401 --show-source --statistics
 
     - name: Run Pytest Suite
-      run: pytest test/
+      run: pytest
 
     - name: Generate Synthetic Test Videos
       run: bash experiments/make_test_clips.sh
@@ -56,3 +51,45 @@ jobs:
       run: |
         python experiments/profile_vectors.py
         node experiments/check_profile.js
+
+  frontend-test:
+    name: Frontend V2 (TypeScript & WebGPU)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-v2
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend-v2/package-lock.json
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Typecheck
+      run: npm run typecheck
+
+    - name: Unit Tests
+      run: npm test
+
+    - name: Build
+      run: npm run build
+
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: actions/setup-buildx-action@v3
+
+    - name: Build Docker Image
+      run: docker build -t asciline:ci .

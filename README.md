@@ -16,6 +16,7 @@
   <a href="#-troubleshooting"><b>Troubleshooting</b></a>
 </p>
 
+[![CI](https://github.com/kushal98457-ctrl/ASCILINE/actions/workflows/ci.yml/badge.svg)](https://github.com/kushal98457-ctrl/ASCILINE/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#-quick-start)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
