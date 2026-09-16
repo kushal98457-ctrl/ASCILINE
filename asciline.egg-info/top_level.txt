@@ -1,6 +1,0 @@
-ascii_video_player2
-codec
-compiler
-logo
-stream_server
-ytdl
