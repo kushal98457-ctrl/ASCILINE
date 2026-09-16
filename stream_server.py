@@ -48,6 +48,10 @@ from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
+
+from core.adaptive import AdaptiveController
+from core.frame_queue import FrameQueue, QueuedFrame
+from core.performance import PerformanceMonitor
 from urllib.parse import urlparse
 from websockets.exceptions import ConnectionClosed
 from contextlib import asynccontextmanager
@@ -817,6 +821,9 @@ async def websocket_endpoint(websocket: WebSocket):
             cmd_queue = asyncio.Queue()
             is_paused = False
 
+            perf_monitor = PerformanceMonitor(window_size=max(10, int(effective_fps)))
+            adaptive_ctrl = AdaptiveController(columns=cols, target_fps=int(effective_fps))
+
             async def receive_commands():
                 try:
                     while True:
@@ -1054,6 +1061,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     # caps the gap and guarantees we never starve the client.
                     if consec_high_reports >= 2 and consec_drops < MAX_CONSEC_DROPS:
                         print(f"[Backpressure] dropping frame {frame_index}, client_backlog={client_backlog}, consec_drops={consec_drops}", flush=True)
+                        perf_monitor.frame_dropped()
                         advanced = await _loop.run_in_executor(None, advance_one)
                         if not advanced:
                             break
@@ -1069,6 +1077,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
                     # ALL CPU work in thread pool — event loop stays 100% free
+                    perf_monitor.frame_started()
                     t_before = time.time()
                     result = await _loop.run_in_executor(
                         None, produce, prev_frame, frame_index)
@@ -1086,6 +1095,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_text(data)
                     else:
                         await websocket.send_bytes(data)
+
+                    proc_time = time.time() - t_before
+                    perf_monitor.frame_finished(bytes_sent=wire_size)
+                    adaptive_ctrl.update(processing_time=proc_time, queue_depth=client_backlog)
 
                     bw_bytes_sent += wire_size
                     bw_raw_bytes += raw_size
