@@ -195,10 +195,10 @@ sidebarTabs.forEach(tab => {
 });
 
 // Sidebar Toggle
-btnSidebarToggle.addEventListener('click', () => {
+if(btnSidebarToggle) btnSidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('mobile-open');
 });
-btnHeaderUpload.addEventListener('click', () => {
+if(btnHeaderUpload) btnHeaderUpload.addEventListener('click', () => {
     // Switch to Media tab and highlight it
     document.querySelector('.sidebar-tab[data-tab="tab-media"]').click();
     if (window.innerWidth <= 900) sidebar.classList.add('mobile-open');
@@ -207,7 +207,7 @@ btnHeaderUpload.addEventListener('click', () => {
 });
 
 // Fullscreen
-btnFullscreen.addEventListener('click', () => {
+if(btnFullscreen) btnFullscreen.addEventListener('click', () => {
     if (!document.fullscreenElement) {
         container.requestFullscreen().catch(err => {
             showToast(`Error attempting to enable full-screen mode: ${err.message}`, 'error');
@@ -233,12 +233,12 @@ function setVolume(val) {
     }
 }
 
-volumeSlider.addEventListener('input', (e) => {
+if(volumeSlider) volumeSlider.addEventListener('input', (e) => {
     audioEl.muted = false;
     setVolume(parseFloat(e.target.value));
 });
 
-btnMute.addEventListener('click', () => {
+if(btnMute) btnMute.addEventListener('click', () => {
     if (audioEl.muted || audioEl.volume === 0) {
         audioEl.muted = false;
         setVolume(parseFloat(localStorage.getItem('asciline_volume')) || 0.75);
@@ -280,22 +280,22 @@ function handleUpload(file) {
     });
 }
 
-uploadDropzone.addEventListener('dragover', (e) => {
+if(uploadDropzone) uploadDropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
     uploadDropzone.classList.add('dragover');
 });
-uploadDropzone.addEventListener('dragleave', () => {
+if(uploadDropzone) uploadDropzone.addEventListener('dragleave', () => {
     uploadDropzone.classList.remove('dragover');
 });
-uploadDropzone.addEventListener('drop', (e) => {
+if(uploadDropzone) uploadDropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadDropzone.classList.remove('dragover');
     if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
 });
-uploadDropzone.addEventListener('click', () => {
+if(uploadDropzone) uploadDropzone.addEventListener('click', () => {
     fileUploadInput.click();
 });
-fileUploadInput.addEventListener('change', (e) => {
+if(fileUploadInput) fileUploadInput.addEventListener('change', (e) => {
     if (e.target.files.length) handleUpload(e.target.files[0]);
 });
 
@@ -381,7 +381,7 @@ paletteRadios.forEach(radio => {
     });
 });
 
-filterReset.addEventListener('click', () => {
+if(filterReset) filterReset.addEventListener('click', () => {
     currentFilters = { contrast: 1.0, gamma: 1.0, brightness: 0, invert: false, sharpness: 0, palette: 'default' };
     syncFilterUI();
     sendFilters();
@@ -471,7 +471,7 @@ function buildCanvas(cols, rows) {
         modeBadgeText.textContent = modes[renderMode] || 'B&W ASCII';
     }
     
-    modeBadge.style.display = 'flex';
+    if(modeBadge) modeBadge.style.display = 'flex';
     hudMode.textContent = modeBadgeText.textContent;
 }
 
@@ -491,7 +491,7 @@ const beginRendering = () => {
     lastFpsUpdate = lastRenderTime;
     requestAnimationFrame(renderFrame);
     startBufferReports();
-    hudOverlay.classList.remove('hidden');
+    if(hudOverlay) hudOverlay.classList.remove('hidden');
 };
 
 const triggerPlaybackStart = (epochToMatch) => {
@@ -542,7 +542,7 @@ function connectWebSocket(startIndex) {
     frameCount = 0;
     currentFps = 0;
     
-    playOverlay.classList.add('hidden');
+    if(playOverlay) playOverlay.classList.add('hidden');
     updateConnectionState('connecting');
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -557,9 +557,9 @@ function connectWebSocket(startIndex) {
         if (typeof event.data === 'string') {
             if (event.data === 'UPLOAD_READY') {
                 updateConnectionState('idle');
-                playOverlay.classList.remove('hidden');
-                document.getElementById('overlay-title').textContent = 'READY FOR MEDIA';
-                document.getElementById('overlay-subtitle').textContent = 'Upload a video to begin playback';
+                if(playOverlay) playOverlay.classList.remove('hidden');
+                if(document.getElementById("overlay-title")) document.getElementById("overlay-title").textContent = 'READY FOR MEDIA';
+                if(document.getElementById("overlay-subtitle")) document.getElementById("overlay-subtitle").textContent = 'Upload a video to begin playback';
                 return;
             }
             if (event.data.startsWith('Error:')) {
@@ -590,7 +590,7 @@ function connectWebSocket(startIndex) {
                 
                 seekSlider.max = duration;
                 seekSlider.value = 0;
-                seekPlayed.style.transform = 'scaleX(0)';
+                seekPlayed.style.width = "0%"; if(document.getElementById("seek-thumb")) document.getElementById("seek-thumb").style.left = "0%";
                 
                 filterPixel.checked = pixelMode;
                 filterPixel.disabled = isWebcamStream;
@@ -734,7 +734,7 @@ function renderFrame(now) {
     if (now - lastUiUpdateTime >= 100) {
         if (!isSeeking) {
             seekSlider.value = masterClock;
-            if (duration) seekPlayed.style.transform = `scaleX(${Math.min(1, masterClock / duration)})`;
+            if (duration) seekPlayed.style.width = `${Math.min(100, (masterClock / duration)*100)}%`; if(document.getElementById("seek-thumb")) document.getElementById("seek-thumb").style.left = `${Math.min(100, (masterClock / duration)*100)}%`;
             
             const formattedTime = formatTime(masterClock);
             if (formattedTime !== lastFormattedTime) {
@@ -848,11 +848,11 @@ function finishStream() {
     player.style.display = 'none';
     container.classList.remove('paused');
     
-    playOverlay.classList.remove('hidden');
-    document.getElementById('overlay-title').textContent = 'INITIALIZE UPLINK';
-    document.getElementById('overlay-subtitle').textContent = 'Click to connect to stream';
-    modeBadge.style.display = 'none';
-    hudOverlay.classList.add('hidden');
+    if(playOverlay) playOverlay.classList.remove('hidden');
+    if(document.getElementById("overlay-title")) document.getElementById("overlay-title").textContent = 'INITIALIZE UPLINK';
+    if(document.getElementById("overlay-subtitle")) document.getElementById("overlay-subtitle").textContent = 'Click to connect to stream';
+    if(modeBadge) modeBadge.style.display = 'none';
+    if(hudOverlay) hudOverlay.classList.add('hidden');
     
     iconPlay.style.display = 'block';
     iconPause.style.display = 'none';
@@ -1007,7 +1007,7 @@ seekWrap.addEventListener('mouseleave', () => {
 seekSlider.addEventListener('input', () => {
     isSeeking = true;
     timeCurrent.textContent = formatTime(seekSlider.value);
-    if (duration) seekPlayed.style.transform = `scaleX(${Math.min(1, seekSlider.value / duration)})`;
+    if (duration) seekPlayed.style.width = `${Math.min(100, (seekSlider.value / duration)*100)}%`; if(document.getElementById("seek-thumb")) document.getElementById("seek-thumb").style.left = `${Math.min(100, (seekSlider.value / duration)*100)}%`;
 });
 
 seekSlider.addEventListener('change', () => {
@@ -1018,7 +1018,7 @@ seekSlider.addEventListener('change', () => {
 
 // ── EVENT BINDINGS ───────────────────────────────────────────────────────────
 
-playOverlay.addEventListener('click', (e) => {
+if(playOverlay) playOverlay.addEventListener('click', (e) => {
     e.stopPropagation();
     startStream();
 });
@@ -1035,30 +1035,30 @@ playPauseBtn.addEventListener('click', (e) => {
     else togglePause();
 });
 
-btnBack.addEventListener('click', (e) => { e.stopPropagation(); skip(-10); });
-btnFwd.addEventListener('click', (e) => { e.stopPropagation(); skip(10); });
+if(btnBack) btnBack.addEventListener('click', (e) => { e.stopPropagation(); skip(-10); });
+if(btnFwd) btnFwd.addEventListener('click', (e) => { e.stopPropagation(); skip(10); });
 
-btnPrev.addEventListener('click', (e) => {
+if(btnPrev) btnPrev.addEventListener('click', (e) => {
     e.stopPropagation();
     if (currentQueueIdx > 0) startStreamAt(currentQueueIdx - 1);
     else showToast('Already at start of playlist', 'info');
 });
 
-btnNext.addEventListener('click', (e) => {
+if(btnNext) btnNext.addEventListener('click', (e) => {
     e.stopPropagation();
     startStreamAt(currentQueueIdx + 1);
 });
 
-btnStreamConnect.addEventListener('click', () => {
+if(btnStreamConnect) btnStreamConnect.addEventListener('click', () => {
     startStream();
 });
 
-btnStreamDisconnect.addEventListener('click', () => {
+if(btnStreamDisconnect) btnStreamDisconnect.addEventListener('click', () => {
     if (ws) ws.close();
     finishStream();
 });
 
-btnConnectUrl.addEventListener('click', () => {
+if(btnConnectUrl) btnConnectUrl.addEventListener('click', () => {
     const val = urlInput.value.trim();
     if (!val) {
         showToast('Enter a URL first', 'warning');

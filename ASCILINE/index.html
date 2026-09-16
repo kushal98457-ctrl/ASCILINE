@@ -1,303 +1,606 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>ASCILINE</title>
-    <link rel="stylesheet" href="style.css"/>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ASCILINE // KERNEL-MEDIA-WORKSTATION</title>
+<!-- Google Fonts: Courier Prime & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&amp;family=JetBrains+Mono:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary-container": "#00f3ff",
+            "tertiary-container": "#ffd1cf",
+            "error-container": "#93000a",
+            "outline": "#849495",
+            "error": "#ffb4ab",
+            "secondary-fixed": "#79ff5b",
+            "outline-variant": "#3a494b",
+            "on-primary-fixed": "#002022",
+            "on-primary-fixed-variant": "#004f53",
+            "secondary-container": "#2ff801",
+            "secondary-fixed-dim": "#2ae500",
+            "on-background": "#e5e1e4",
+            "tertiary-fixed-dim": "#ffb3b2",
+            "tertiary-fixed": "#ffdad8",
+            "primary-fixed": "#6ff6ff",
+            "on-tertiary": "#680012",
+            "primary-fixed-dim": "#00dce6",
+            "on-secondary-fixed": "#022100",
+            "tertiary": "#fff6f6",
+            "inverse-on-surface": "#313032",
+            "surface-tint": "#00dce6",
+            "surface-bright": "#39393b",
+            "on-tertiary-fixed": "#410008",
+            "on-secondary": "#053900",
+            "on-secondary-fixed-variant": "#095300",
+            "surface-container-highest": "#353437",
+            "on-error": "#690005",
+            "surface-container": "#201f21",
+            "surface": "#131315",
+            "on-tertiary-container": "#c3002b",
+            "surface-container-high": "#2a2a2c",
+            "on-surface-variant": "#b9cacb",
+            "surface-variant": "#353437",
+            "on-primary": "#00373a",
+            "background": "#131315",
+            "primary": "#e3fdff",
+            "on-tertiary-fixed-variant": "#92001e",
+            "on-secondary-container": "#0f6d00",
+            "inverse-surface": "#e5e1e4",
+            "inverse-primary": "#00696f",
+            "surface-container-lowest": "#0e0e10",
+            "surface-container-low": "#1c1b1d",
+            "secondary": "#d7ffc5",
+            "on-error-container": "#ffdad6",
+            "on-primary-container": "#006b71",
+            "surface-dim": "#131315",
+            "on-surface": "#e5e1e4"
+          },
+          "borderRadius": {
+            "DEFAULT": "0px",
+            "lg": "0px",
+            "xl": "0px",
+            "full": "0px"
+          },
+          "spacing": {
+            "panel-padding": "12px",
+            "container-max": "1440px",
+            "margin": "24px",
+            "unit": "4px",
+            "gutter": "16px"
+          },
+          "fontFamily": {
+            "body-lg": ["Courier Prime"],
+            "headline-md": ["Courier Prime"],
+            "body-sm": ["Courier Prime"],
+            "mono-data": ["JetBrains Mono"],
+            "label-caps": ["JetBrains Mono"],
+            "headline-lg": ["Courier Prime"]
+          },
+          "fontSize": {
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "mono-data": ["13px", { "lineHeight": "16px", "fontWeight": "500" }],
+            "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+            "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    /* Neon Glow & Reticle Aesthetics */
+    .glow-cyan {
+      box-shadow: 0 0 8px rgba(0, 243, 255, 0.45);
+    }
+    .glow-green {
+      box-shadow: 0 0 8px rgba(47, 248, 1, 0.45);
+    }
+    .scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.6) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 6px 100%;
+    }
+    .hud-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(58, 73, 75, 0.25) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(58, 73, 75, 0.25) 1px, transparent 1px);
+    }
+    /* Custom Scrollbar for terminal density */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0e0e10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3a494b;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00f3ff;
+    }
+  </style>
 </head>
-<body>
-
-    <!-- Top Header Bar -->
-    <header id="app-header">
-        <div class="logo">
-            ASCILINE <span class="logo-badge">PRO</span>
+<body class="bg-surface-container-lowest text-on-surface select-none font-mono-data overflow-hidden h-screen flex flex-col antialiased">
+<!-- ================= TOP STATUS / NAVIGATION BAR ================= -->
+<header class="w-full px-panel-padding h-12 flex justify-between items-center bg-surface-container-lowest border-b border-outline-variant z-50 shrink-0">
+<!-- Brand & Status Beacon -->
+<div class="flex items-center gap-gutter">
+<div class="flex items-center gap-2">
+<span class="inline-block w-2 h-2 bg-primary-container glow-cyan"></span>
+<span class="font-headline-md text-headline-md uppercase tracking-wider text-primary-container font-bold">ASCILINE // PROTOCOL_V4.8</span>
+</div>
+<div class="flex items-center gap-2 bg-surface-container-low px-2 py-0.5 border border-outline-variant">
+<span class="w-1.5 h-1.5 bg-secondary-container animate-ping"></span>
+<span class="font-label-caps text-label-caps text-secondary-container">[ WEBGPU: ACCELERATED ]</span>
+</div>
+</div>
+<!-- Center System Telemetry Strings -->
+<div class="hidden xl:flex items-center gap-6 font-mono-data text-mono-data text-outline">
+<div>GPU: <span class="text-on-surface font-bold">RTX-TITAN</span> <span class="text-secondary-container">[44°C]</span></div>
+<div class="text-outline-variant">|</div>
+<div>VRAM: <span class="text-primary-container"><span id="perf-buffer">0</span> B</span</div>
+<div class="text-outline-variant">|</div>
+<div>KERNEL: <span class="text-secondary-container">ACTIVE</span></div>
+<div class="text-outline-variant">|</div>
+<div>BUFFER: <span class="text-on-surface" id="perf-inflight">0</span> IN-FLIGHT<span id="connection-text" class="ml-4 text-xs font-bold text-error">DISCONNECTED</span></div>
+</div>
+<!-- Navigation Links & Trailing Actions from Shared Anchor Spec -->
+<div class="flex items-center gap-4">
+<nav class="hidden md:flex items-center gap-4">
+<button class="border-b border-primary-container text-primary-container font-label-caps text-label-caps uppercase tracking-widest pb-1">PIPELINE</button>
+<button class="text-outline font-label-caps text-label-caps uppercase tracking-widest hover:text-on-surface">SHADERS</button>
+<button class="text-outline font-label-caps text-label-caps uppercase tracking-widest hover:text-on-surface">NODES</button>
+<button class="text-outline font-label-caps text-label-caps uppercase tracking-widest hover:text-on-surface">LOGS</button>
+</nav>
+<div class="h-4 w-px bg-outline-variant"></div>
+<!-- Quick Action Controls -->
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1 bg-surface-container-low border border-outline-variant px-2 py-1 text-primary-container hover:bg-primary-container hover:text-on-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-sm">sensors</span>
+<span class="font-label-caps text-[10px]">UPLINK</span>
+</button>
+<div class="bg-surface border border-secondary-container/50 px-2 py-1 flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 bg-secondary-container"></span>
+<span class="font-label-caps text-[10px] text-secondary-container font-bold">COMPILER [PASS]</span>
+</div>
+<button class="p-1 text-outline hover:text-primary-container hover:bg-surface-container border border-transparent hover:border-outline-variant transition-colors" title="Settings">
+<span class="material-symbols-outlined text-base">tune</span>
+</button>
+<button class="p-1 text-outline hover:text-primary-container hover:bg-surface-container border border-transparent hover:border-outline-variant transition-colors" title="Toggle Fullscreen HUD">
+<span class="material-symbols-outlined text-base">fullscreen</span>
+</button>
+</div>
+</div>
+</header>
+<!-- ================= WORKSTATION BODY (MAIN VIEWPORT + LEFT SIDEBAR) ================= -->
+<div class="flex-1 flex overflow-hidden">
+<!-- LEFT SIDEBAR: Dense Collapsible Command & Control Panels (Width: 340px) -->
+<aside class="w-[340px] bg-surface flex flex-col border-r border-outline-variant shrink-0 overflow-y-auto">
+<!-- Node Header Status -->
+<div class="p-panel-padding bg-surface-container-lowest border-b border-outline-variant flex items-center justify-between">
+<div>
+<div class="text-secondary-container font-mono-data text-xs tracking-widest">NODE//01_PRIMARY</div>
+<div class="text-outline font-label-caps text-[10px]">STATUS: [ ONLINE_WEBGPU ]</div>
+</div>
+<button class="px-2 py-1 bg-primary-container text-on-primary-fixed font-label-caps text-[10px] font-bold tracking-wider hover:bg-primary-fixed-dim transition-none" id="btn-stream-connect">
+          CONNECT_UPLINK
+        </button>
+</div>
+<!-- PANEL 1: MEDIA UPLOAD & INPUT SOURCE -->
+<div class="border-b border-outline-variant">
+<div class="bg-surface-container px-panel-padding py-2 flex items-center justify-between cursor-pointer border-b border-outline-variant/60">
+<span class="font-label-caps text-label-caps text-primary-container flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">video_file</span>
+            01 // MEDIA INPUT &amp; STREAM
+          </span>
+<span class="material-symbols-outlined text-xs text-outline">expand_less</span>
+</div>
+<div class="p-panel-padding space-y-3 bg-surface">
+<!-- Ingestion Dropzone -->
+<div class="border border-dashed border-primary-container/60" id="upload-dropzone bg-surface-container-lowest p-3 relative group hover:border-primary-container transition-colors cursor-pointer text-center">
+<div class="absolute top-1 left-1 text-[9px] text-outline font-mono-data">+</div>
+<div class="absolute top-1 right-1 text-[9px] text-outline font-mono-data">+</div>
+<div class="absolute bottom-1 left-1 text-[9px] text-outline font-mono-data">+</div>
+<div class="absolute bottom-1 right-1 text-[9px] text-outline font-mono-data">+</div>
+<span class="material-symbols-outlined text-primary-container text-xl block mb-1">grain</span>
+<div class="text-primary-container font-label-caps text-[11px] font-bold tracking-tight">
+              [ DROP INPUT STREAM OR FILE ]
+            </div>
+<div class="text-outline font-mono-data text-[10px] mt-0.5">FORMATS: .RAW, .MP4, .YUV, .NV12</div>
+</div>
+<!-- Live Stream Input -->
+<div class="space-y-1">
+<label class="font-label-caps text-[10px] text-outline uppercase tracking-wider block">Network Stream Uplink</label>
+<div class="flex items-center border border-outline-variant bg-surface-container-lowest">
+<span class="text-primary-container pl-2 text-xs">&gt;</span>
+<input id="url-input" class="w-full bg-transparent border-none text-[11px] font-mono-data text-on-surface focus:ring-0 px-2 py-1" type="text" value="rtsp://matrix.node01.lan/feed_v0"/>
+<button class="px-2 py-1 bg-surface-container border-l border-outline-variant text-primary-container font-label-caps text-[10px] hover:bg-primary-container hover:text-on-primary-fixed">
+                [CONNECT]
+              </button>
+</div>
+</div>
+<!-- Media Spec Readout List -->
+<div class="bg-surface-container-lowest border border-outline-variant p-2 space-y-1 font-mono-data text-[11px]">
+<div class="flex justify-between">
+<span class="text-primary-container">Codec:</span>
+<span class="text-on-surface">H.265 / HEVC Main10</span>
+</div>
+<div class="flex justify-between">
+<span class="text-primary-container">Native Res:</span>
+<span class="text-on-surface"><span id="meta-res">-</span> @ <span id="meta-fps">-</span> fps</span>
+</div>
+<div class="flex justify-between">
+<span class="text-primary-container">Bitrate:</span>
+<span class="text-secondary-container">48.5 Mbps [CBR]</span>
+</div>
+<div class="flex justify-between">
+<span class="text-primary-container">Pixel Format:</span>
+<span class="text-on-surface">YUV420P10LE</span>
+</div>
+</div>
+</div>
+</div>
+<!-- PANEL 2: RENDER & DITHER MATRIX -->
+<div class="border-b border-outline-variant">
+<div class="bg-surface-container px-panel-padding py-2 flex items-center justify-between cursor-pointer border-b border-outline-variant/60">
+<span class="font-label-caps text-label-caps text-primary-container flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">code</span>
+            02 // RENDER &amp; DITHER MATRIX
+          </span>
+<span class="material-symbols-outlined text-xs text-outline">expand_less</span>
+</div>
+<div class="p-panel-padding space-y-3 bg-surface">
+<!-- Character Set Dropdown -->
+<div class="space-y-1">
+<label class="font-label-caps text-[10px] text-outline uppercase tracking-wider block">ASCII Glyph Library</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border border-outline-variant text-on-surface text-xs font-mono-data py-1 px-2 appearance-none rounded-none focus:border-primary-container focus:ring-0">
+<option>ASCII Extended [256-bit Glyph Set]</option>
+<option>Matrix Katakana High-Density</option>
+<option>Blocks &amp; Shading (Unicode 0x2580)</option>
+<option>Braille Hex Matrix Dense</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1.5 text-xs pointer-events-none text-outline">unfold_more</span>
+</div>
+</div>
+<!-- Sliders with Digital Value Counters -->
+<div class="space-y-2">
+<div>
+<div class="flex justify-between text-[11px] font-mono-data mb-0.5">
+<span class="text-outline">Sub-sampling Res:</span>
+<span class="text-primary-container font-bold">128 cols</span>
+</div>
+<input type="range" id="filter-contrast" class="w-full h-1 bg-surface-container-highest appearance-none bg-transparent accent-primary-container" min="0.1" max="3.0" step="0.05" value="1.0" />
+</div>
+<div>
+<div class="flex justify-between text-[11px] font-mono-data mb-0.5">
+<span class="text-outline">Edge Threshold:</span>
+<span class="text-primary-container font-bold">78%</span>
+</div>
+<input type="range" id="filter-brightness" class="w-full h-1 bg-surface-container-highest appearance-none bg-transparent accent-primary-container" min="-100" max="100" step="1" value="0" />
+</div>
+<div>
+<div class="flex justify-between text-[11px] font-mono-data mb-0.5">
+<span class="text-outline">Quantization Gamma:</span>
+<span class="text-primary-container font-bold">1.40 γ</span>
+</div>
+<input type="range" id="filter-gamma" class="w-full h-1 bg-surface-container-highest appearance-none bg-transparent accent-primary-container" min="0.1" max="3.0" step="0.05" value="1.0" />
+</div>
+</div>
+<!-- Sharp Block Toggles -->
+<div class="pt-1 space-y-1.5">
+<div class="flex items-center justify-between p-1.5 bg-surface-container-lowest border border-outline-variant">
+<span class="text-[11px] font-mono-data text-on-surface">Floyd-Steinberg Dither</span>
+<input type="checkbox" id="filter-pixel" class="form-checkbox bg-surface-container-highest text-primary-container border-outline-variant rounded-none" />
+</div>
+<div class="flex items-center justify-between p-1.5 bg-surface-container-lowest border border-outline-variant">
+<span class="text-[11px] font-mono-data text-on-surface">Sobel Optical Flow</span>
+<span class="bg-secondary-container text-on-secondary font-label-caps text-[9px] px-1.5 py-0.5 font-bold">[ACTIVE]</span>
+</div>
+<div class="flex items-center justify-between p-1.5 bg-surface-container-lowest border border-outline-variant">
+<span class="text-[11px] font-mono-data text-outline">Chroma Inversion</span>
+<span class="bg-surface-container-highest text-outline font-label-caps text-[9px] px-1.5 py-0.5">[OFF]</span>
+</div>
+<div class="flex items-center justify-between p-1.5 bg-surface-container-lowest border border-outline-variant">
+<span class="text-[11px] font-mono-data text-on-surface">CRT Scanline Mesh</span>
+<span class="bg-primary-container text-on-primary-fixed font-label-caps text-[9px] px-1.5 py-0.5 font-bold">[ON]</span>
+</div>
+</div>
+</div>
+</div>
+<!-- PANEL 3: CONNECTION STATUS & PIPELINE TELEMETRY -->
+<div class="border-b border-outline-variant">
+<div class="bg-surface-container px-panel-padding py-2 flex items-center justify-between cursor-pointer border-b border-outline-variant/60">
+<span class="font-label-caps text-label-caps text-primary-container flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">lan</span>
+            03 // TELEMETRY &amp; UPLINK
+          </span>
+<span class="material-symbols-outlined text-xs text-outline">expand_less</span>
+</div>
+<div class="p-panel-padding space-y-2.5 bg-surface">
+<div class="flex justify-between items-center text-xs">
+<span class="text-outline">Node Relay:</span>
+<span class="text-on-surface font-mono-data">NODE_0x89A_TOKYO</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-outline">Roundtrip Ping:</span>
+<span class="text-secondary-container font-mono-data">[LATENCY: 12ms]</span>
+</div>
+<!-- Sparkline / Packet loss indicator -->
+<div class="space-y-1">
+<div class="flex justify-between text-[10px] text-outline font-mono-data">
+<span>PACKET LOSS GRAPH</span>
+<span class="text-secondary-container">0.00%</span>
+</div>
+<canvas id="sparkline-canvas" class="h-6 w-full bg-surface-container-lowest border border-outline-variant"></canvas><div class="hidden">
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+<div class="w-1/12 h-2.5 bg-secondary-container"></div>
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+<div class="w-1/12 h-3 bg-secondary-container"></div>
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+<div class="w-1/12 h-3.5 bg-secondary-container"></div>
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+<div class="w-1/12 h-2.5 bg-secondary-container"></div>
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+<div class="w-1/12 h-2 bg-secondary-container"></div>
+</div>
+</div>
+<!-- Memory buffer saturation -->
+<div class="space-y-1">
+<div class="flex justify-between text-[10px] font-mono-data">
+<span class="text-outline">PIPELINE CACHE SATURATION</span>
+<span class="text-primary-container">88%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest">
+<div class="h-full bg-primary-container w-[88%]"></div>
+</div>
+</div>
+<button class="w-full py-1 bg-surface-container border border-outline-variant hover:border-primary-container text-outline hover:text-primary-container font-label-caps text-[10px] tracking-widest uppercase transition-colors">
+            FLUSH_BUFFER_CACHE
+          </button>
+</div>
+</div>
+<!-- Footnote / System info -->
+<div class="p-panel-padding mt-auto text-[10px] text-outline/70 border-t border-outline-variant space-y-1">
+<div class="flex justify-between">
+<span>HOST: MATRIX-CORE-4</span>
+<span>UPTIME: 94:12:08</span>
+</div>
+<div class="text-secondary-container">[ KERNEL CONFIG: LOCKED ]</div>
+</div>
+</aside>
+<!-- ================= MAIN CENTRAL VIEWPORT ================= -->
+<main class="flex-1 bg-surface-container-lowest flex flex-col p-2 relative overflow-hidden">
+<!-- Video Viewport Frame with Tactical Borders & Corners -->
+<div class="relative flex-1 bg-black border border-outline-variant flex items-center justify-center overflow-hidden">
+<!-- Reticle Grid & Scanline Background -->
+<div class="absolute inset-0 hud-grid opacity-30 pointer-events-none"></div>
+<div class="absolute inset-0 scanlines pointer-events-none z-20"></div>
+<!-- Tactical Corner Brackets -->
+<div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary-container z-30 pointer-events-none"></div>
+<div class="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary-container z-30 pointer-events-none"></div>
+<div class="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary-container z-30 pointer-events-none"></div>
+<div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary-container z-30 pointer-events-none"></div>
+<!-- Dimension & Coordinate Markers -->
+<div class="absolute top-3 left-8 text-[10px] font-mono-data text-outline/80 z-30 pointer-events-none">
+          X:1920 // Y:1080 [NATIVE_RENDER]
         </div>
-        <div class="status-indicator">
-            <div id="connection-dot" class="status-dot"></div>
-            <span id="connection-text" class="text-secondary text-xs">DISCONNECTED</span>
+<div class="absolute bottom-3 right-8 text-[10px] font-mono-data text-outline/80 z-30 pointer-events-none">
+          CAM_01_OPTICAL_FEED // ZOOM: 1.00x
         </div>
-        <div style="display: flex; gap: 8px;">
-            <button id="btn-header-upload" class="btn btn-icon" title="Upload Media">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-            </button>
-            <button id="btn-sidebar-toggle" class="btn btn-icon" style="display: none;" title="Toggle Sidebar">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-            </button>
+<!-- Central Tactical Crosshair -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+<div class="relative w-28 h-28 border border-outline-variant/50 flex items-center justify-center">
+<div class="w-2 h-2 border border-primary-container"></div>
+<div class="absolute top-0 w-px h-2 bg-primary-container"></div>
+<div class="absolute bottom-0 w-px h-2 bg-primary-container"></div>
+<div class="absolute left-0 h-px w-2 bg-primary-container"></div>
+<div class="absolute right-0 h-px w-2 bg-primary-container"></div>
+<div class="absolute -top-4 text-[9px] text-primary-container font-mono-data tracking-widest">AIM_LOCK</div>
+</div>
+</div>
+<!-- Video Player Primary Canvas Asset -->
+<canvas id="ascii-canvas" class="absolute inset-0 w-full h-full object-cover z-10" style="image-rendering: pixelated;"></canvas><pre id="ascii-player" class="absolute inset-0 w-full h-full object-cover z-10 font-mono text-[8px] leading-[8px] font-bold text-transparent select-text" style="display:none;"></pre><audio id="ascii-audio"></audio><img class="absolute inset-0 hidden w-full h-full object-cover opacity-80 z-10" data-alt="A cinematic high-contrast cyberpunk anime command center visual displayed on a monitor screen. Dark moody palette dominated by obsidian surfaces, glowing matrix lime green data matrices, and stark cyan vector lines. A complex mechanical avatar wireframe is centered in tactical crosshairs with glowing digital code cascading in the background, creating a high-tech terminal surveillance atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdgcEmc_XyzlwxngHj3gxIi4nIulYBlMTWefaEPHiHMt_yYS27IN_M53bR00vMxwEXi_k6IWiT1yWW5cSAe-3ckoMbbTfkzq29XMDKGsCEWtqFyVkJdRFs4c2Cb95brcYho5-i2gH8Gr3PK4T-xeeSTs12VNEwcRSh1CvPbpRXWVdsJd8Mzz0I53p6GWYYLT7VeQV3LJYDhPH6TX8YQx-aEYTPWImN6Aaagr-2Fn3K2E3ytptgVtlV_njvdLtTepVYonSlBu2-Yss"/>
+<!-- TOP-LEFT HUD OVERLAY BOX -->
+<div class="absolute top-4 left-4 z-30 flex flex-col gap-1.5 pointer-events-none">
+<div class="flex items-center gap-1.5 bg-black/80 border border-outline-variant px-2.5 py-1">
+<span class="w-2 h-2 bg-error animate-pulse"></span>
+<span class="text-error font-label-caps text-[11px] font-bold tracking-wider">[ REC // 00:14:28:12 ]</span>
+</div>
+<div class="bg-black/80 border border-outline-variant px-2 py-0.5 text-primary-container font-label-caps text-[10px]">
+            [ SOURCE: UPLINK_PRIMARY ]
+          </div>
+<div class="bg-black/80 border border-outline-variant px-2 py-0.5 text-outline font-label-caps text-[10px]">
+            [ COLOR_SPACE: REC.709 ]
+          </div>
+</div>
+<!-- TOP-RIGHT HUD TELEMETRY BOX -->
+<div class="absolute top-4 right-4 z-30 bg-surface-container-lowest/90 border border-primary-container p-2.5 text-right font-mono-data text-[11px] space-y-1 w-56 backdrop-blur-sm">
+<div class="flex justify-between items-center border-b border-outline-variant pb-1">
+<span class="text-outline">SYSTEM CLOCK:</span>
+<span class="text-secondary-container font-bold"><span id="perf-fps">0</span> FPS</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">Frame Time:</span>
+<span class="text-on-surface"><span id="hud-fps">0</span> ms</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">Dropped Frames:</span>
+<span class="text-secondary-container">0</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">Sync Jitter:</span>
+<span class="text-on-surface">0.8 ms</span>
+</div>
+<!-- Mini FPS Sparkline -->
+<div class="pt-1.5">
+<div class="text-[9px] text-outline text-left mb-1">FRAME STABILITY:</div>
+<div class="h-4 flex items-end justify-between gap-0.5 bg-surface border border-outline-variant p-0.5">
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-4"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+<div class="w-1 bg-secondary-container h-3.5"></div>
+</div>
+</div>
+</div>
+<!-- BOTTOM-LEFT SHADER HUD TAG -->
+<div class="absolute bottom-4 left-4 z-30 bg-black/85 border border-primary-container px-2.5 py-1 flex items-center gap-2">
+<span class="material-symbols-outlined text-xs text-primary-container">memory</span>
+<span class="text-primary-container font-mono-data text-[11px] font-bold">
+            [ SHADER: KERNEL_ASCII_V2.WGSL - 0.42ms ]
+          </span>
+</div>
+<!-- Center Inspect / Pause Overlay Glyph -->
+<div class="absolute z-20 pointer-events-none opacity-20 hover:opacity-50 transition-opacity">
+<span class="material-symbols-outlined text-7xl text-primary-container">center_focus_strong</span>
+</div>
+</div>
+</main>
+</div>
+<!-- ================= BOTTOM TRANSPORT CONTROL & AUDIO TELEMETRY BAR ================= -->
+<footer class="h-28 bg-surface-container-lowest border-t border-outline-variant flex flex-col shrink-0 z-50">
+<!-- TIMELINE SCRUB TRACK & TIME RULER (Top Sub-bar) -->
+<div class="h-7 bg-surface-container-low border-b border-outline-variant px-panel-padding flex flex-col justify-center relative cursor-pointer group">
+<!-- Time Ruler Numbers -->
+<div class="flex justify-between text-[9px] font-mono-data text-outline mb-1 select-none pointer-events-none">
+<span>00:00:00</span>
+<span class="hidden md:inline">00:03:10</span>
+<span>00:06:20</span>
+<span class="hidden md:inline">00:09:30</span>
+<span>00:12:45</span>
+</div>
+<!-- Scrubber Track -->
+<div class="relative w-full h-2 bg-surface-container-highest" id="seek-wrap">
+<!-- Buffered range indicator (Lime glow) -->
+
+<!-- Progress bar (Lime Green) -->
+<div id="seek-played" class="absolute left-0 top-0 h-full bg-secondary-container w-[0%]"></div>
+<!-- Keyframe Markers -->
+<div class="absolute left-[12%] -top-0.5 w-1 h-3 bg-tertiary-fixed-dim" title="Keyframe A"></div>
+<div class="absolute left-[34%] -top-0.5 w-1 h-3 bg-primary-container" title="Keyframe Current"></div>
+<div class="absolute left-[48%] -top-0.5 w-1 h-3 bg-tertiary-fixed-dim" title="Keyframe B"></div>
+<div class="absolute left-[70%] -top-0.5 w-1 h-3 bg-tertiary-fixed-dim" title="Keyframe C"></div>
+<!-- Cyan Scrubber Thumb (12x12 square with cyan glow) -->
+<input type="range" id="seek-slider" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-ew-resize z-10" min="0" max="100" value="0" /><div id="seek-thumb" class="absolute left-[0%] -ml-1.5 -top-1 w-3 h-4 bg-primary-container glow-cyan pointer-events-none"></div>
+</div>
+</div>
+<!-- MAIN TRANSPORT & TELEMETRY ROW -->
+<div class="flex-1 px-panel-padding flex items-center justify-between">
+<!-- Left: Transport Controls -->
+<div class="flex items-center gap-1.5">
+<!-- Step Backward (1 Frame) -->
+<button class="w-8 h-8 bg-surface border border-outline-variant text-on-surface hover:border-primary-container hover:text-primary-container flex items-center justify-center transition-colors" title="Step Back 1 Frame">
+<span class="material-symbols-outlined text-base">skip_previous</span>
+</button>
+<!-- Rewind 10s -->
+<button class="w-8 h-8 bg-surface border border-outline-variant text-on-surface hover:border-primary-container hover:text-primary-container flex items-center justify-center transition-colors" title="Rewind 10s">
+<span class="material-symbols-outlined text-base">fast_rewind</span>
+</button>
+<!-- PLAY/PAUSE (Prominent Neon Cyan Button) -->
+<button id="play-pause-btn" class="w-10 h-10 bg-primary-container text-on-primary-fixed hover:bg-primary-fixed-dim glow-cyan flex items-center justify-center transition-none mx-1 font-bold" title="Toggle Playback"><span class="material-symbols-outlined text-2xl" id="icon-play" style="font-variation-settings: 'FILL' 1;">play_arrow</span><span class="material-symbols-outlined text-2xl hidden" id="icon-pause" style="font-variation-settings: 'FILL' 1;">pause</span></button><button class="hidden">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<!-- Fast Forward 10s -->
+<button class="w-8 h-8 bg-surface border border-outline-variant text-on-surface hover:border-primary-container hover:text-primary-container flex items-center justify-center transition-colors" title="Fast Forward 10s">
+<span class="material-symbols-outlined text-base">fast_forward</span>
+</button>
+<!-- Step Forward (1 Frame) -->
+<button class="w-8 h-8 bg-surface border border-outline-variant text-on-surface hover:border-primary-container hover:text-primary-container flex items-center justify-center transition-colors" title="Step Forward 1 Frame">
+<span class="material-symbols-outlined text-base">skip_next</span>
+</button>
+<!-- Loop Toggle -->
+<button class="w-8 h-8 bg-surface border border-primary-container text-primary-container flex items-center justify-center transition-colors ml-1" title="Loop Continuous">
+<span class="material-symbols-outlined text-base">repeat</span>
+</button>
+</div>
+<!-- Center: SMPTE Timecode & Frame Readout -->
+<div class="flex items-center gap-4 bg-surface-container-low border border-outline-variant px-4 py-1.5">
+<div class="flex flex-col items-center">
+<div class="font-mono-data text-lg md:text-xl text-primary-container font-bold tracking-widest">
+            <span id="time-current">00:00:00</span> <span class="text-outline text-sm">/ <span id="time-total">00:00:00</span></span>
+</div>
+</div>
+<div class="h-6 w-px bg-outline-variant"></div>
+<div class="text-secondary-container font-mono-data text-xs font-bold">
+          [ FRAME: 007762 ]
         </div>
-    </header>
-
-    <!-- Main Layout -->
-    <div id="app-body">
-        
-        <!-- Left Sidebar -->
-        <aside id="sidebar">
-            <div class="sidebar-tabs">
-                <button class="sidebar-tab active" data-tab="tab-media">Media</button>
-                <button class="sidebar-tab" data-tab="tab-render">Render</button>
-                <button class="sidebar-tab" data-tab="tab-stream">Stream</button>
-                <button class="sidebar-tab" data-tab="tab-perf">Perf</button>
-            </div>
-
-            <!-- Media Tab -->
-            <div id="tab-media" class="sidebar-content active">
-                <div class="section-title">Upload Source</div>
-                <div id="upload-dropzone" class="dropzone">
-                    <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.36 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-                    <div class="dropzone-title">Drop video here</div>
-                    <div class="dropzone-desc">MP4, MKV, WEBM (Max 2GB)</div>
-                    <input type="file" id="file-upload-input" class="file-input" accept=".mp4,.mkv,.webm,.mov,.avi,.m4v" />
-                </div>
-
-                <div class="section-title">Network Source</div>
-                <div class="form-group">
-                    <input type="text" id="url-input" class="input-text" placeholder="rtsp:// or http:// url" />
-                </div>
-                <button id="btn-connect-url" class="btn btn-block">Connect Stream</button>
-
-                <div class="section-title" style="margin-top: 24px;">Source Info</div>
-                <div class="card">
-                    <div class="data-row">
-                        <span class="data-label">Resolution</span>
-                        <span id="meta-res" class="data-value">-</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Source FPS</span>
-                        <span id="meta-fps" class="data-value">-</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Duration</span>
-                        <span id="meta-duration" class="data-value">-</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Render Tab -->
-            <div id="tab-render" class="sidebar-content">
-                <div class="section-title">Adjustments</div>
-                <div class="card">
-                    <div class="form-group">
-                        <label><span>Contrast</span> <span id="filter-contrast-val" class="val">1.00</span></label>
-                        <input id="filter-contrast" type="range" class="slider" min="0.1" max="3.0" step="0.05" value="1.0" />
-                    </div>
-                    <div class="form-group">
-                        <label><span>Gamma</span> <span id="filter-gamma-val" class="val">1.00</span></label>
-                        <input id="filter-gamma" type="range" class="slider" min="0.1" max="3.0" step="0.05" value="1.0" />
-                    </div>
-                    <div class="form-group">
-                        <label><span>Brightness</span> <span id="filter-brightness-val" class="val">0</span></label>
-                        <input id="filter-brightness" type="range" class="slider" min="-100" max="100" step="1" value="0" />
-                    </div>
-                    <div class="form-group">
-                        <label><span>Sharpness</span> <span id="filter-sharpness-val" class="val">0</span></label>
-                        <input id="filter-sharpness" type="range" class="slider" min="0" max="10" step="1" value="0" />
-                    </div>
-                    <button id="filter-reset" class="btn btn-block" style="margin-top: 12px;">Reset Adjustments</button>
-                </div>
-
-                <div class="section-title">Processing</div>
-                <div class="card">
-                    <div class="toggle-row">
-                        <span class="toggle-label">Pixel Mode</span>
-                        <label class="toggle">
-                            <input type="checkbox" id="filter-pixel" />
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="toggle-row">
-                        <span class="toggle-label">Invert Colors</span>
-                        <label class="toggle">
-                            <input type="checkbox" id="filter-invert" />
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="section-title">Character Palette</div>
-                <div class="card">
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="palette" value="default" checked />
-                            <span>Standard ASCII</span>
-                            <span class="radio-preview">@%#*+=-:.</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="palette" value="flat" />
-                            <span>Minimal (Flat)</span>
-                            <span class="radio-preview">@%#*+=-.</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="palette" value="block" />
-                            <span>Block Elements</span>
-                            <span class="radio-preview">@#o+.</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stream Tab -->
-            <div id="tab-stream" class="sidebar-content">
-                <div class="section-title">Connection</div>
-                <div class="card">
-                    <div class="form-group">
-                        <label>WebSocket URL</label>
-                        <input type="text" id="ws-url-display" class="input-text" readonly value="ws://localhost:8000/ws" />
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">State</span>
-                        <span id="stream-state" class="data-value text-error">CLOSED</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Queue Index</span>
-                        <span id="stream-queue-idx" class="data-value">-</span>
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-top: 16px;">
-                        <button id="btn-stream-connect" class="btn btn-primary" style="flex: 1;">Connect</button>
-                        <button id="btn-stream-disconnect" class="btn" style="flex: 1;">Disconnect</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Perf Tab -->
-            <div id="tab-perf" class="sidebar-content">
-                <div class="section-title">Telemetry</div>
-                <div class="card">
-                    <div class="data-row">
-                        <span class="data-label">Render FPS</span>
-                        <span id="perf-fps" class="data-value">-</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Buffer Depth</span>
-                        <span id="perf-buffer" class="data-value">0</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Frames In Flight</span>
-                        <span id="perf-inflight" class="data-value">0</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Grid Size</span>
-                        <span id="perf-grid" class="data-value">-</span>
-                    </div>
-                    <canvas id="sparkline-canvas"></canvas>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Center Viewport -->
-        <main id="viewport">
-            
-            <div id="mode-badge" style="display: none;">
-                <div class="badge-dot"></div>
-                <span id="mode-badge-text">B&W ASCII</span>
-            </div>
-
-            <!-- HUD Overlay (Top Right) -->
-            <div id="hud-overlay" class="hidden">
-                <div class="hud-row">
-                    <span class="hud-label">FPS</span>
-                    <span id="hud-fps" class="hud-val highlight">0.0</span>
-                </div>
-                <div class="hud-row">
-                    <span class="hud-label">BUF</span>
-                    <span id="hud-buf" class="hud-val">0</span>
-                </div>
-                <div class="hud-row">
-                    <span class="hud-label">MODE</span>
-                    <span id="hud-mode" class="hud-val">B&W</span>
-                </div>
-            </div>
-
-            <!-- Canvas Container -->
-            <div id="player-container">
-                <pre id="ascii-player"></pre>
-                <canvas id="ascii-canvas"></canvas>
-                
-                <div id="play-overlay">
-                    <div class="play-btn-large">
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </div>
-                    <div class="play-overlay-title" id="overlay-title">INITIALIZE UPLINK</div>
-                    <div class="play-overlay-subtitle" id="overlay-subtitle">Click to connect to stream</div>
-                </div>
-            </div>
-
-            <!-- Toasts -->
-            <div id="toast-container"></div>
-            
-            <!-- Hidden Audio Element -->
-            <audio id="ascii-audio"></audio>
-        </main>
-    </div>
-
-    <!-- Bottom Transport Bar -->
-    <footer id="transport-bar">
-        <!-- Timeline -->
-        <div id="seek-wrap" class="timeline-container">
-            <div class="timeline-track"></div>
-            <div id="seek-played" class="timeline-played"></div>
-            <input type="range" id="seek-slider" class="timeline-slider" min="0" max="100" value="0" />
-            
-            <div id="seek-preview" class="seek-preview">
-                <div id="seek-preview-img" class="seek-preview-img"></div>
-                <div id="seek-preview-time" class="seek-preview-time">00:00</div>
-            </div>
+</div>
+<!-- Right: Audio VU Meters, Volume & Speed Controls -->
+<div class="flex items-center gap-4">
+<!-- Dual Channel VU Meters (L / R) -->
+<div class="flex items-center gap-1.5 bg-surface-container-low border border-outline-variant p-1">
+<!-- Left Channel -->
+<div class="flex flex-col items-center">
+<span class="text-[8px] font-mono-data text-outline">L</span>
+<div class="w-2 h-10 bg-surface-container-highest flex flex-col-reverse p-0.5 gap-0.5">
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-fixed-dim w-full"></div>
+<div class="h-1 bg-error w-full"></div>
+</div>
+</div>
+<!-- Right Channel -->
+<div class="flex flex-col items-center">
+<span class="text-[8px] font-mono-data text-outline">R</span>
+<div class="w-2 h-10 bg-surface-container-highest flex flex-col-reverse p-0.5 gap-0.5">
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-secondary-container w-full"></div>
+<div class="h-1 bg-surface-container w-full"></div>
+</div>
+</div>
+</div>
+<!-- Volume Controller -->
+<div class="hidden lg:flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-sm">volume_up</span>
+<div class="relative w-16 h-1 bg-surface-container-highest flex items-center">
+<div class="h-full bg-primary-container w-[85%]"></div>
+<div class="absolute left-[85%] -ml-1 w-2 h-2.5 bg-primary-container glow-cyan"></div>
+</div>
+<span class="text-[10px] font-mono-data text-primary-container">85%</span>
+</div>
+<!-- Playback Speed -->
+<div class="flex border border-outline-variant text-[11px] font-mono-data">
+<button class="px-1.5 py-1 bg-surface-container-highest text-primary-container font-bold">1.0x</button>
+<button class="px-1.5 py-1 bg-surface text-outline hover:text-on-surface border-l border-outline-variant">1.5x</button>
+<button class="px-1.5 py-1 bg-surface text-outline hover:text-on-surface border-l border-outline-variant">2.0x</button>
+</div>
+<!-- Aspect Ratio -->
+<div class="bg-surface-container border border-outline-variant px-2 py-1 text-[11px] font-mono-data text-outline">
+          [ 16:9 RAW ]
         </div>
-
-        <!-- Controls -->
-        <div class="transport-controls">
-            <!-- Left Group: Playback Navigation -->
-            <div class="transport-group">
-                <button id="btn-prev" class="btn btn-icon" title="Previous in Playlist">
-                    <svg class="icon-sm" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-                </button>
-                <button id="btn-back" class="btn btn-icon" title="Rewind 10s">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
-                </button>
-                
-                <button id="play-pause-btn" class="btn btn-icon" style="background: var(--accent); color: white; border-color: var(--accent);" title="Play/Pause">
-                    <svg class="icon" id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    <svg class="icon" id="icon-pause" viewBox="0 0 24 24" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                </button>
-
-                <button id="btn-fwd" class="btn btn-icon" title="Forward 10s">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
-                </button>
-                <button id="btn-next" class="btn btn-icon" title="Next in Playlist">
-                    <svg class="icon-sm" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-                </button>
-            </div>
-
-            <!-- Center Group: Time Display -->
-            <div class="transport-group center">
-                <div class="time-display">
-                    <span id="time-current" class="current">00:00:00</span>
-                    <span>/</span>
-                    <span id="time-total">00:00:00</span>
-                </div>
-                
-                <!-- Display only control for professional look -->
-                <button class="btn" disabled title="Playback speed is set by the source" style="font-family: var(--font-mono); font-size: 10px;">1.0×</button>
-            </div>
-
-            <!-- Right Group: Volume & Fullscreen -->
-            <div class="transport-group" style="justify-content: flex-end;">
-                <div class="vol-container">
-                    <div id="btn-mute">
-                        <svg class="icon" id="icon-vol-up" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                        <svg class="icon" id="icon-vol-off" viewBox="0 0 24 24" style="display: none;"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-                    </div>
-                    <input type="range" id="volume-slider" class="slider" min="0" max="1" step="0.01" value="0.75" />
-                </div>
-                
-                <button id="btn-fullscreen" class="btn btn-icon" title="Fullscreen">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-                </button>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Dependency: The adaptive frame decoder -->
-    <script src="/static/codec.js"></script>
-    <script src="app.js"></script>
-</body>
-</html>
+</div>
+</div>
+</footer>
+<input type="file" id="file-upload-input" class="hidden" accept=".mp4,.webm,.mkv" /><script src="/static/codec.js"></script><script src="app.js"></script></body></html>
