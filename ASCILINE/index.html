@@ -271,18 +271,18 @@
 <!-- FLOATING HUD: Top-Right GPU & Live Telemetry Overlay -->
 <div class="absolute top-3 right-3 bg-[#14161b]/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg flex items-center space-x-3 shadow-2xl z-20">
 <div class="flex items-center space-x-1.5">
-<canvas id="sparkline-canvas" class="h-4 w-20 bg-surface border border-outline-variant/30 rounded"></canvas><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping ml-2"></span>
-<span class="text-label-mono-xs font-label-mono-xs text-on-surface">GPU <span class="text-secondary font-medium">38%</span></span>
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+<span id="connection-text" class="text-label-mono-xs font-label-mono-xs text-error font-medium">DISCONNECTED</span>
 </div>
 <span class="text-outline-variant text-[10px]">|</span>
-<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">VRAM <span class="text-on-surface font-medium">14.2 GB</span></span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant"><span id="perf-inflight" class="text-on-surface font-medium">0</span> IN-FLIGHT</span>
 <span class="text-outline-variant text-[10px]">|</span>
 <!-- Live mini sparkline SVG -->
 <div class="flex items-center space-x-1">
-<svg class="w-12 h-3.5 text-secondary" fill="none" stroke="currentColor" viewbox="0 0 48 14">
+<svg class="w-12 h-3.5 text-secondary hidden" fill="none" stroke="currentColor" viewbox="0 0 48 14">
 <path d="M0 8 L8 9 L16 5 L24 7 L32 3 L40 6 L48 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
 </svg>
-<span class="text-label-mono-xs font-label-mono-xs text-emerald-400 font-medium">24.0 fps</span>
+<canvas id="sparkline-canvas" class="h-4 w-20 bg-surface border border-outline-variant/30 rounded mr-2"></canvas><span class="text-label-mono-xs font-label-mono-xs text-emerald-400 font-medium"><span id="perf-fps">0</span> fps</span>
 </div>
 </div>
 <!-- FLOATING HUD: Quick Action Viewport Controls (Center Bottom) -->
