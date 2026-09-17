@@ -910,12 +910,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 return True
 
             # Drop once the client's decoded-frame backlog exceeds this. The client
-            # render loop keeps a ~BUFFER_SIZE (4) jitter buffer, so 8 is one extra
-            # buffer of slack before we start shedding. MAX_CONSEC_DROPS guarantees
-            # liveness: we always send a real frame at least this often, so a stalled
-            # or non-reporting client can never be starved and a large delta gap is
-            # bounded.
-            BACKLOG_HIGH = 15
+            # render loop keeps a ~BUFFER_SIZE (4) jitter buffer, so 6 allows slack
+            # while remaining within the client's bounded frame queue depth (3-8).
+            BACKLOG_HIGH = 6
             MAX_CONSEC_DROPS = max(1, int(round(effective_fps * 0.3)))  # ~300ms of frames
             client_backlog = 0   # latest depth reported by the client (0 = unknown/healthy)
             consec_high_reports = 0 # hysteresis: consecutive reports exceeding BACKLOG_HIGH

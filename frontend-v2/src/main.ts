@@ -63,6 +63,9 @@ const player = new Player(canvas, {
   onMetrics: (m: FrameMetrics) => {
     metricsEl.textContent = formatMetrics(m);
   },
+  onConnectionStatus: (status) => {
+    updateConnectionStatus(status);
+  },
   onError: showError,
 });
 
@@ -217,33 +220,26 @@ uploadConnectBtn.addEventListener("click", async () => {
   }
 });
 
-// Update timeline & volume logic (basic implementation)
-// Assuming Player has some event/poll for time if it's local playback
-setInterval(() => {
-  // If player exposes currentTime/duration, update here. For now we use placeholder logic.
-  // We need player.getCurrentTime() and player.getDuration()
-  // This depends on the internal Player API. We'll leave it as a mock update for the UI wrapper to prevent throwing.
-  const time = (player as any).currentTime || 0;
-  const dur = (player as any).duration || 0;
-  
-  const fmt = (s: number) => {
-    const m = Math.floor(s / 60).toString().padStart(2, '0');
-    const sec = Math.floor(s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
-  };
+// Update timeline & volume logic via clean Player subscriptions
+const fmt = (s: number) => {
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = Math.floor(s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+};
 
+player.onTimeUpdate((time, dur) => {
   if (dur > 0 && document.activeElement !== timelineInput) {
-      timeCurrent.textContent = fmt(time);
-      timeDuration.textContent = fmt(dur);
-      const pct = (time / dur) * 100;
-      timelineProgress.style.width = `${pct}%`;
-      timelineThumb.style.left = `${pct}%`;
-      timelineInput.value = pct.toString();
+    timeCurrent.textContent = fmt(time);
+    timeDuration.textContent = fmt(dur);
+    const pct = Math.min(100, (time / dur) * 100);
+    timelineProgress.style.width = `${pct}%`;
+    timelineThumb.style.left = `${pct}%`;
+    timelineInput.value = pct.toString();
   }
-}, 500);
+});
 
 timelineInput.addEventListener("input", () => {
-  const dur = (player as any).duration || 0;
+  const dur = player.duration;
   if (dur > 0) {
     const targetTime = (Number(timelineInput.value) / 100) * dur;
     player.seek(targetTime);
@@ -251,9 +247,7 @@ timelineInput.addEventListener("input", () => {
 });
 
 volumeSlider.addEventListener("input", () => {
-  if (typeof (player as any).setVolume === 'function') {
-      (player as any).setVolume(Number(volumeSlider.value) / 100);
-  }
+  player.setVolume(Number(volumeSlider.value) / 100);
 });
 
 // Keyboard shortcuts

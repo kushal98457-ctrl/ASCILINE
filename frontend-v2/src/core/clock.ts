@@ -9,10 +9,12 @@ export class PlaybackClock {
   private manualOffsetSec = 0;
   private manualStartWallMs = 0;
   private useManualClock = false;
+  private manualPaused = false;
 
   attach(videoEl: HTMLVideoElement): void {
     this.videoEl = videoEl;
     this.useManualClock = false;
+    this.manualPaused = false;
   }
 
   /** For sources without an HTMLMediaElement (e.g. raw WebSocket frame streams). */
@@ -20,6 +22,7 @@ export class PlaybackClock {
     this.useManualClock = true;
     this.manualOffsetSec = startSec;
     this.manualStartWallMs = performance.now();
+    this.manualPaused = false;
   }
 
   seekManual(toSec: number): void {
@@ -27,15 +30,36 @@ export class PlaybackClock {
     this.manualStartWallMs = performance.now();
   }
 
+  pauseManual(): void {
+    if (this.useManualClock && !this.manualPaused) {
+      this.manualOffsetSec = this.now();
+      this.manualPaused = true;
+    }
+  }
+
+  resumeManual(): void {
+    if (this.useManualClock && this.manualPaused) {
+      this.manualPaused = false;
+      this.manualStartWallMs = performance.now();
+    }
+  }
+
   now(): number {
     if (this.useManualClock) {
+      if (this.manualPaused) {
+        return this.manualOffsetSec;
+      }
       return this.manualOffsetSec + (performance.now() - this.manualStartWallMs) / 1000;
     }
     return this.videoEl?.currentTime ?? 0;
   }
 
+  get currentTime(): number {
+    return this.now();
+  }
+
   isPaused(): boolean {
-    if (this.useManualClock) return false;
+    if (this.useManualClock) return this.manualPaused;
     return this.videoEl?.paused ?? true;
   }
 }

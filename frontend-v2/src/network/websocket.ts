@@ -2,31 +2,30 @@ import { parseInitMessage, parsePixelFrame, bgrToBgra, type StreamInit } from ".
 import { FrameQueue, type QueuedFrame } from "./frameQueue";
 
 export interface StreamClientEvents {
+  onOpen?: () => void;
   onInit?: (init: StreamInit) => void;
   onError?: (err: Error) => void;
   onClose?: () => void;
+  onReconnecting?: (attempt: number, delayMs: number) => void;
 }
 
 /**
- * Connects to stream_server.py's existing `/ws` endpoint in pixel_mode,
- * decodes the raw-BGR binary protocol into VideoFrame objects, and buffers
- * them in a bounded FrameQueue. This is the integration point the
- * frontend-v2 README flagged as not-yet-built — the renderer side needed
- * no changes since Pipeline/renderFrame already accept VideoFrame.
- *
- * Deliberately reuses pixel_mode rather than inventing a new server mode:
- * it already streams full-resolution raw frames server-side (see
- * calc_auto_dimensions's MAX_ROWS=1080 for pixel_mode), so the only gap was
- * the client never asking for high columns/fps and never decoding the
- * result as anything other than <canvas> fillRect calls.
+ * Connects to stream_server.py's `/ws` endpoint in pixel_mode,
+ * decodes frames into VideoFrame objects, and buffers them in FrameQueue.
  */
 export class StreamClient {
   private ws: WebSocket | null = null;
   private init: StreamInit | null = null;
   readonly queue: FrameQueue;
   private events: StreamClientEvents;
-  private frameIndexCounter = 0;
   private reportBacklogHandle: number | null = null;
+
+  // Reconnection state
+  private shouldReconnect = false;
+  private reconnectAttempts = 0;
+  private reconnectTimer: number | null = null;
+  private lastUrl: string = "";
+  private lastOpts: { cols?: number; fps?: number; startIndex?: number; codec?: string } = {};
 
   constructor(queueMaxDepth = 6, events: StreamClientEvents = {}) {
     this.queue = new FrameQueue(queueMaxDepth);
@@ -35,39 +34,79 @@ export class StreamClient {
 
   /**
    * @param baseUrl e.g. "ws://localhost:8000/ws"
-   * @param opts.cols requested source-resolution columns (server clamps to 1920)
-   * @param opts.fps requested target FPS (server clamps to 1-60)
+   * @param opts.cols requested columns (default: 640)
+   * @param opts.fps requested target FPS (default: 60)
    */
-  connect(baseUrl: string, opts: { cols?: number; fps?: number; startIndex?: number } = {}): void {
+  connect(
+    baseUrl: string,
+    opts: { cols?: number; fps?: number; startIndex?: number; codec?: string } = {},
+  ): void {
+    this.shouldReconnect = true;
+    this.lastUrl = baseUrl;
+    this.lastOpts = opts;
+
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
     const url = new URL(baseUrl);
-    url.searchParams.set("cols", String(opts.cols ?? 1920));
+    url.searchParams.set("cols", String(opts.cols ?? 640));
     url.searchParams.set("fps", String(opts.fps ?? 60));
+    url.searchParams.set("codec", opts.codec ?? "adaptive");
     if (opts.startIndex !== undefined) {
       url.searchParams.set("start_index", String(opts.startIndex));
     }
-    // Server only honors cols/fps overrides when the queue entry is already
-    // in pixel_mode (see stream_server.py) — that's a playlist/CLI-side
-    // config, not something this client can force, so a misconfigured
-    // server-side entry will simply be ignored, not silently corrupted.
 
-    const ws = new WebSocket(url.toString());
-    ws.binaryType = "arraybuffer";
-    this.ws = ws;
+    try {
+      const ws = new WebSocket(url.toString());
+      ws.binaryType = "arraybuffer";
+      this.ws = ws;
 
-    ws.onmessage = (ev) => {
-      if (typeof ev.data === "string") {
-        this.handleTextMessage(ev.data);
-      } else {
-        this.handleBinaryFrame(ev.data as ArrayBuffer);
+      ws.onopen = () => {
+        this.reconnectAttempts = 0;
+        this.events.onOpen?.();
+      };
+
+      ws.onmessage = (ev) => {
+        if (typeof ev.data === "string") {
+          this.handleTextMessage(ev.data);
+        } else {
+          this.handleBinaryFrame(ev.data as ArrayBuffer);
+        }
+      };
+
+      ws.onerror = () => {
+        this.events.onError?.(new Error("StreamClient: WebSocket error"));
+      };
+
+      ws.onclose = () => {
+        this.stopBacklogReporting();
+        this.events.onClose?.();
+        if (this.shouldReconnect) {
+          this.scheduleReconnect();
+        }
+      };
+
+      this.startBacklogReporting();
+    } catch (err) {
+      this.events.onError?.(err as Error);
+      if (this.shouldReconnect) {
+        this.scheduleReconnect();
       }
-    };
-    ws.onerror = () => this.events.onError?.(new Error("StreamClient: WebSocket error"));
-    ws.onclose = () => {
-      this.stopBacklogReporting();
-      this.events.onClose?.();
-    };
+    }
+  }
 
-    this.startBacklogReporting();
+  private scheduleReconnect(): void {
+    if (!this.shouldReconnect) return;
+    this.reconnectAttempts++;
+    const delayMs = Math.min(30000, 1000 * Math.pow(1.5, this.reconnectAttempts - 1));
+    this.events.onReconnecting?.(this.reconnectAttempts, delayMs);
+    this.reconnectTimer = window.setTimeout(() => {
+      if (this.shouldReconnect) {
+        this.connect(this.lastUrl, this.lastOpts);
+      }
+    }, delayMs);
   }
 
   private handleTextMessage(text: string): void {
@@ -81,13 +120,21 @@ export class StreamClient {
     } else if (text.startsWith("Error:")) {
       this.events.onError?.(new Error(text));
     }
-    // Other control text (filter acks, etc.) is intentionally ignored here —
-    // this client only cares about the raw-frame path, not the ASCII/text UI.
   }
 
   private handleBinaryFrame(buffer: ArrayBuffer): void {
-    if (!this.init) return; // frame arrived before INIT; drop (shouldn't happen)
+    if (!this.init) return;
     const { cols, rows, fps } = this.init;
+
+    if (typeof VideoFrame === "undefined") {
+      this.events.onError?.(
+        new Error(
+          "StreamClient: VideoFrame API is not supported in this browser environment. Please use a browser supporting WebCodecs.",
+        ),
+      );
+      return;
+    }
+
     try {
       const { frameIndex, bgr } = parsePixelFrame(buffer, cols, rows);
       const bgra = bgrToBgra(bgr, cols * rows);
@@ -95,11 +142,10 @@ export class StreamClient {
         format: "BGRA",
         codedWidth: cols,
         codedHeight: rows,
-        timestamp: Math.round((frameIndex / fps) * 1_000_000), // VideoFrame timestamp is µs
+        timestamp: Math.round((frameIndex / fps) * 1_000_000),
       });
       const item: QueuedFrame = { frameIndex, timestampSec: frameIndex / fps, frame };
       this.queue.push(item);
-      this.frameIndexCounter = frameIndex;
     } catch (err) {
       this.events.onError?.(err as Error);
     }
@@ -107,6 +153,7 @@ export class StreamClient {
 
   /** Mirrors the server's `{type:"buffer", depth}` backpressure protocol. */
   private startBacklogReporting(): void {
+    this.stopBacklogReporting();
     this.reportBacklogHandle = window.setInterval(() => {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ type: "buffer", depth: this.queue.depth() }));
@@ -138,6 +185,11 @@ export class StreamClient {
   }
 
   disconnect(): void {
+    this.shouldReconnect = false;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.stopBacklogReporting();
     this.ws?.close();
     this.ws = null;

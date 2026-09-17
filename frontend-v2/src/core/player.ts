@@ -8,21 +8,24 @@ export interface PlayerEvents {
   onMetrics?: (m: FrameMetrics) => void;
   onBackendSelected?: (backend: string) => void;
   onError?: (err: Error) => void;
+  onConnectionStatus?: (status: string) => void;
 }
 
+export type PlayerMode = "local" | "live";
+
 /**
- * Local-file player: uses the browser's own hardware video decoding via
- * <video>, and hands decoded frames to the Pipeline for GPU ASCII rendering.
- * This intentionally does NOT reimplement video decode in JS/WASM — per the
- * architecture rule, decode stays someone else's job (here: the browser;
- * in the streaming path, the FFmpeg-backed backend) so the GPU pipeline only
- * ever does image processing + rendering.
+ * Local-file and Live-stream video player.
+ * In local mode, uses browser's hardware video decode via <video>.
+ * In live mode, consumes raw frames from stream_server.py via StreamClient.
  */
 export class Player {
   readonly pipeline = new Pipeline();
   readonly clock = new PlaybackClock();
   private videoEl: HTMLVideoElement;
   private events: PlayerEvents;
+  private mode: PlayerMode = "local";
+  private timeUpdateInterval: number | null = null;
+  private timeUpdateListeners = new Set<(current: number, duration: number) => void>();
 
   constructor(canvas: HTMLCanvasElement, events: PlayerEvents = {}) {
     this.events = events;
@@ -40,9 +43,17 @@ export class Player {
       .init(canvas)
       .then((backend) => this.events.onBackendSelected?.(backend))
       .catch((err) => this.events.onError?.(err));
+
+    this.startTimeUpdateLoop();
+  }
+
+  getMode(): PlayerMode {
+    return this.mode;
   }
 
   async loadFile(file: File): Promise<void> {
+    this.mode = "local";
+    this.disconnectLive();
     const url = URL.createObjectURL(file);
     this.videoEl.src = url;
     await new Promise<void>((resolve, reject) => {
@@ -52,6 +63,8 @@ export class Player {
   }
 
   async loadUrl(url: string): Promise<void> {
+    this.mode = "local";
+    this.disconnectLive();
     this.videoEl.src = url;
     await new Promise<void>((resolve, reject) => {
       this.videoEl.onloadedmetadata = () => resolve();
@@ -60,18 +73,31 @@ export class Player {
   }
 
   play(): void {
-    void this.videoEl.play();
-    this.pipeline.start(this.videoEl);
+    if (this.mode === "live") {
+      this.liveClock.resumeManual();
+      this.streamClient?.pause(false);
+    } else {
+      void this.videoEl.play();
+      this.pipeline.start(this.videoEl);
+    }
   }
 
   pause(): void {
-    this.videoEl.pause();
-    this.streamClient?.pause(true);
+    if (this.mode === "live") {
+      this.liveClock.pauseManual();
+      this.streamClient?.pause(true);
+    } else {
+      this.videoEl.pause();
+    }
   }
 
   seek(seconds: number): void {
-    this.videoEl.currentTime = seconds;
-    this.streamClient?.seek(seconds);
+    if (this.mode === "live") {
+      this.liveClock.seekManual(seconds);
+      this.streamClient?.seek(seconds);
+    } else {
+      this.videoEl.currentTime = seconds;
+    }
   }
 
   // ---- Live streaming (stream_server.py pixel_mode) ----
@@ -80,14 +106,16 @@ export class Player {
 
   /**
    * Connects to an ASCILINE stream_server.py instance and switches the
-   * pipeline into live mode. Requests full source resolution (server clamps
-   * to 1920) and 60 FPS (server clamps to 60) — see the `cols`/`fps` opt-in
-   * query params added to stream_server.py's /ws endpoint.
-   * `startIndex` jumps straight to a specific queue entry (see uploadAndConnectLive).
+   * pipeline into live mode.
    */
   connectLive(wsUrl: string, startIndex?: number): void {
+    this.mode = "live";
+    this.videoEl.pause();
     this.streamClient?.disconnect();
     const client = new StreamClient(6, {
+      onOpen: () => {
+        this.events.onConnectionStatus?.("CONNECTED");
+      },
       onInit: (init: StreamInit) => {
         if (!init.pixelMode) {
           this.events.onError?.(
@@ -100,17 +128,21 @@ export class Player {
         }
         this.liveClock.startManual(0);
         this.pipeline.startLive(client, this.liveClock);
+        this.events.onConnectionStatus?.("STREAMING");
       },
       onError: (err) => this.events.onError?.(err),
+      onClose: () => this.events.onConnectionStatus?.("DISCONNECTED"),
+      onReconnecting: (attempt, delayMs) => {
+        this.events.onConnectionStatus?.(`RECONNECTING (${attempt}) in ${Math.round(delayMs / 1000)}s...`);
+      },
     });
     this.streamClient = client;
-    client.connect(wsUrl, { cols: 1920, fps: 60, startIndex });
+    client.connect(wsUrl, { cols: 640, fps: 60, startIndex });
   }
 
   /**
-   * Uploads a local file (picked from the user's PC) to stream_server.py's
-   * /upload endpoint, then connects the live pipeline straight to it.
-   * `httpBaseUrl` e.g. "http://localhost:8000", `wsUrl` e.g. "ws://localhost:8000/ws".
+   * Uploads a local file to stream_server.py's /upload endpoint,
+   * then connects the live pipeline straight to it.
    */
   async uploadAndConnectLive(file: File, httpBaseUrl: string, wsUrl: string): Promise<void> {
     const form = new FormData();
@@ -136,16 +168,21 @@ export class Player {
   }
 
   get duration(): number {
+    if (this.mode === "live") {
+      return this.streamClient?.getInit()?.durationSec || 0;
+    }
     return this.videoEl.duration || 0;
   }
 
   get currentTime(): number {
-    return this.videoEl.currentTime;
+    if (this.mode === "live") {
+      return this.liveClock.currentTime;
+    }
+    return this.videoEl.currentTime || 0;
   }
 
   setVolume(vol: number): void {
     this.videoEl.volume = Math.max(0, Math.min(1, vol));
-    // Optionally trigger stream_server audio adjustment here if supported
   }
 
   updateSettings(partial: Partial<QualitySettings>): void {
@@ -156,7 +193,29 @@ export class Player {
     return this.pipeline.getSettings();
   }
 
+  onTimeUpdate(callback: (current: number, duration: number) => void): () => void {
+    this.timeUpdateListeners.add(callback);
+    return () => this.timeUpdateListeners.delete(callback);
+  }
+
+  private startTimeUpdateLoop(): void {
+    if (typeof window === "undefined") return;
+    this.timeUpdateInterval = window.setInterval(() => {
+      const cur = this.currentTime;
+      const dur = this.duration;
+      for (const listener of this.timeUpdateListeners) {
+        listener(cur, dur);
+      }
+    }, 250);
+  }
+
   destroy(): void {
+    if (this.timeUpdateInterval !== null) {
+      clearInterval(this.timeUpdateInterval);
+      this.timeUpdateInterval = null;
+    }
+    this.timeUpdateListeners.clear();
+    this.disconnectLive();
     this.pipeline.destroy();
     this.videoEl.pause();
     this.videoEl.removeAttribute("src");
