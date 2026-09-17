@@ -8,10 +8,17 @@ Priority Order:
   1. --playlist playlist.json  → JSON file (per-video vol, mode, path)
   2. --folder ./videos         → folder scan (filesystem order, not alphabetical)
   3. positional video arg      → single video (legacy behavior)
+
+NOTE ON ARCHITECTURE & CLIENT SESSIONS:
+ASCILINE is primarily designed as a single-session or synchronized broadcast streaming server.
+Each connected WebSocket client receives frames independently, but playlist progression,
+uploads, and playback controls operate on the shared server playlist queue.
+Concurrency limits are enforced via --max-clients (default: 4).
 """
 import sys
 import signal
 import os
+from collections import OrderedDict
 
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from typing import Optional
@@ -40,7 +47,7 @@ import cv2
 import ytdl
 import json
 import numpy as np
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -110,9 +117,13 @@ async def safe_resolve_video_path(vid: str):
         
     if vid not in _download_locks:
         _download_locks[vid] = asyncio.Lock()
-    async with _download_locks[vid]:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, resolve_video_path, vid)
+    try:
+        async with _download_locks[vid]:
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, resolve_video_path, vid)
+    finally:
+        if vid in _download_locks and not _download_locks[vid].locked():
+            _download_locks.pop(vid, None)
 
 async def prefetch_worker():
     """Background task that ensures the next video in the queue is downloaded."""
@@ -162,6 +173,10 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 app = FastAPI(lifespan=lifespan)
+app.state.allow_upload = True
+app.state.allow_no_origin = True
+app.state.max_clients = 4
+active_websockets: set[WebSocket] = set()
 
 
 def get_video_dimensions(path: str) -> tuple[int, int]:
@@ -212,10 +227,52 @@ STATIC_WHITELIST = {"app.js", "style.css", "codec.js"}
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_UPLOAD_EXT = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v"}
-MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB safety cap
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB safety cap per file
+MAX_UPLOADS_TOTAL_BYTES = 5 * 1024 * 1024 * 1024  # 5 GB total uploads disk quota (S1)
+MAX_UPLOADS_PER_MINUTE = 10
+_upload_rate_limits: dict[str, list[float]] = {}
+
+def _enforce_upload_quota(extra_bytes: int = 0):
+    """Enforce LRU disk cap on uploads/ directory, deleting oldest files if needed."""
+    try:
+        if not os.path.exists(UPLOAD_DIR):
+            return
+        entries = []
+        total_size = 0
+        for entry in os.scandir(UPLOAD_DIR):
+            if entry.is_file():
+                stat = entry.stat()
+                entries.append((stat.st_mtime, stat.st_size, entry.path))
+                total_size += stat.st_size
+
+        entries.sort(key=lambda x: x[0])  # oldest first
+        while entries and (total_size + extra_bytes > MAX_UPLOADS_TOTAL_BYTES):
+            mtime, size, path = entries.pop(0)
+            try:
+                os.remove(path)
+                total_size -= size
+                print(f"[UPLOAD] Cleaned old upload to maintain quota: {path}")
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"[WARN] Error during upload quota cleanup: {e}")
 
 @app.post("/upload")
-async def upload_video(file: UploadFile = File(...)):
+async def upload_video(request: Request, file: UploadFile = File(...)):
+    if not getattr(app.state, "allow_upload", True):
+        raise HTTPException(status_code=403, detail="Uploads are disabled on this server")
+
+    # Rate limiting (per-IP: 10 uploads/min)
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    timestamps = _upload_rate_limits.setdefault(client_ip, [])
+    _upload_rate_limits[client_ip] = [t for t in timestamps if now - t < 60.0]
+    if len(_upload_rate_limits[client_ip]) >= MAX_UPLOADS_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Max 10 uploads per minute.")
+    _upload_rate_limits[client_ip].append(now)
+
+    _enforce_upload_quota()
+
     import uuid
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_UPLOAD_EXT:
@@ -232,6 +289,7 @@ async def upload_video(file: UploadFile = File(...)):
                 if bytes_written > MAX_UPLOAD_BYTES:
                     raise HTTPException(status_code=413, detail="File too large (max 2GB)")
                 out.write(chunk)
+        _enforce_upload_quota()
     except HTTPException:
         if os.path.exists(dest_path):
             os.remove(dest_path)
@@ -493,7 +551,8 @@ async def audio_stream(v: Optional[int] = None, start: float = 0.0):
 # A grid of small frames sampled across the video, like a YouTube preview strip.
 # Built once per video on first request and kept in memory only (no disk cache).
 # If you'd rather serve a sprite from the static compiler, just point /scrub at it.
-_scrub_cache: dict = {}  # video_path -> {"meta": {...}, "jpeg": bytes} or None
+_scrub_cache: OrderedDict = OrderedDict()  # video_path -> {"meta": {...}, "jpeg": bytes} or None
+MAX_SCRUB_CACHE_ENTRIES = 8
 
 
 def _build_scrub_sprite(video_path: str, max_count: int = 64, cell_w: int = 160):
@@ -567,7 +626,12 @@ async def scrub_meta(v: Optional[int] = None):
         
     if video_path not in _scrub_cache:
         loop = asyncio.get_running_loop()
-        _scrub_cache[video_path] = await loop.run_in_executor(None, _build_scrub_sprite, video_path)
+        result = await loop.run_in_executor(None, _build_scrub_sprite, video_path)
+        while len(_scrub_cache) >= MAX_SCRUB_CACHE_ENTRIES:
+            _scrub_cache.popitem(last=False)
+        _scrub_cache[video_path] = result
+    else:
+        _scrub_cache.move_to_end(video_path)
     built = _scrub_cache.get(video_path)
     if not built:
         return Response(content='{"available": false}', media_type="application/json")
@@ -580,16 +644,18 @@ async def scrub_meta(v: Optional[int] = None):
 @app.get("/scrub_sprite")
 async def scrub_sprite(v: Optional[int] = None):
     from fastapi import Response, HTTPException
-    built = _scrub_cache.get(_scrub_video_path(v))
+    path = _scrub_video_path(v)
+    built = _scrub_cache.get(path)
     if not built:
         raise HTTPException(status_code=404, detail="Not found")
+    _scrub_cache.move_to_end(path)
     return Response(content=built["jpeg"], media_type="image/jpeg")
 
 
-def _origin_allowed(origin: str | None, host_header: str | None = None) -> bool:
+def _origin_allowed(origin: str | None, host_header: str | None = None, allow_no_origin: bool = True) -> bool:
     """Reject cross-site WebSocket hijacking while allowing localhost and LAN same-origin."""
     if not origin:
-        return True  # non-browser clients / test harness send no Origin
+        return allow_no_origin  # loopback defaults to True; non-loopback defaults to False
     try:
         origin_host = urlparse(origin).hostname
     except ValueError:
@@ -611,11 +677,20 @@ async def websocket_endpoint(websocket: WebSocket):
     """
     # ── Origin Check (prevents cross-site WebSocket hijacking) ──
     origin = websocket.headers.get("origin")
-    if not _origin_allowed(origin, websocket.headers.get("host")):
+    allow_no_origin = getattr(app.state, "allow_no_origin", True)
+    if not _origin_allowed(origin, websocket.headers.get("host"), allow_no_origin=allow_no_origin):
         await websocket.close(code=1008)
         return
 
+    # ── Connection Limit Check (prevents connection exhaustion) ──
+    max_clients = getattr(app.state, "max_clients", 4)
+    if len(active_websockets) >= max_clients:
+        print(f"[WS] Connection rejected: max clients ({max_clients}) reached")
+        await websocket.close(code=1013, reason="Server busy / max clients reached")
+        return
+
     await websocket.accept()
+    active_websockets.add(websocket)
 
     # Opt-in adaptive codec (raw/zlib/delta). Legacy clients omit it and get
     # the original uncompressed binary protocol, byte-for-byte unchanged.
@@ -1141,6 +1216,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except (WebSocketDisconnect, ConnectionClosed, RuntimeError):
         print("Client disconnected from the stream.")
+    finally:
+        active_websockets.discard(websocket)
 
 
 import logo
@@ -1327,6 +1404,9 @@ if __name__ == "__main__":
     srv.add_argument("--port", type=int, default=8000, help="Server port (default: 8000)")
     srv.add_argument("--debug", action="store_true", default=False, help="Enable bandwidth debug logging (RAW vs WIRE)")
     srv.add_argument("--cache-limit", type=int, default=10240, help="Cache limit in MB for downloaded videos (default: 10240 = 10GB)")
+    srv.add_argument("--max-clients", type=int, default=4, help="Maximum concurrent WebSocket clients (default: 4)")
+    srv.add_argument("--allow-upload", action=argparse.BooleanOptionalAction, default=None, help="Allow video uploads via /upload endpoint (default: enabled on localhost, disabled on public interfaces)")
+    srv.add_argument("--allow-no-origin", action=argparse.BooleanOptionalAction, default=None, help="Allow WebSocket connections without Origin header (default: enabled on localhost, disabled on public interfaces)")
 
     args = parser.parse_args()
 
@@ -1370,6 +1450,17 @@ if __name__ == "__main__":
     global_default_cols     = args.cols if args.cols is not None else (450 if args.pixel else 200)
     app.state.cols          = global_default_cols
     app.state.rows          = args.rows
+
+    # Server security options
+    if args.allow_upload is None:
+        args.allow_upload = (args.host in {"127.0.0.1", "localhost"})
+    app.state.allow_upload = args.allow_upload
+
+    if args.allow_no_origin is None:
+        args.allow_no_origin = (args.host in {"127.0.0.1", "localhost"})
+    app.state.allow_no_origin = args.allow_no_origin
+
+    app.state.max_clients   = args.max_clients
 
     # ── High FPS Warning ──
     high_fps_videos = []
