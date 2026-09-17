@@ -16,10 +16,14 @@ import time
 import shutil
 import numpy as np
 import cv2
-import os
 
-# Enable ANSI color codes on PowerShell/CMD (Windows):
-os.system("")
+# Enable ANSI color codes on Windows console safely
+if sys.platform == "win32":
+    try:
+        import colorama
+        colorama.just_fix_windows_console()
+    except Exception:
+        pass
 
 
 # ─────────────────────────────────────────────

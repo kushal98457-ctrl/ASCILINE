@@ -14,12 +14,14 @@ Usage:
 import sys
 import time
 import random
-import shutil
-import os
 
-# Enable ANSI escape codes on Windows terminal
-if os.name == 'nt':
-    os.system("")
+# Enable ANSI escape codes on Windows terminal safely
+if sys.platform == "win32":
+    try:
+        import colorama
+        colorama.just_fix_windows_console()
+    except Exception:
+        pass
 
 # Static wordmark + play arrow, rendered once (ANSI-shadow). Kept inline so the
 # script has zero dependencies.

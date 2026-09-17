@@ -8,7 +8,7 @@ import sys
 
 # Import the existing engine components (now in the same directory)
 from ascii_video_player2 import VideoDecoder, AsciiMapper
-from codec import encode_frame, DEFAULT_LEVEL, ProfileEncoder
+from codec import encode_frame, ProfileEncoder
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
 
 def extract_audio(video_path: str, output_path: str):
@@ -204,7 +204,6 @@ def compile_video(args):
 
 
 if __name__ == "__main__":
-    import sys
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
     import logo

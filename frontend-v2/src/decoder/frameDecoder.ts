@@ -51,22 +51,20 @@ export function parseInitMessage(text: string): StreamInit {
 
 export interface DecodedPixelFrame {
   frameIndex: number;
-  /** Raw BGR bytes, 3 bytes/pixel, row-major, length === cols*rows*3. */
+  /** Raw BGR or BGRA bytes. */
   bgr: Uint8Array;
 }
 
 /**
  * Parses one binary WebSocket message from a pixel_mode stream:
- * 4-byte big-endian frame index, followed by cols*rows*3 raw BGR bytes.
- * Throws if the buffer is the wrong size for the given grid — a size
- * mismatch means cols/rows are stale (e.g. a REINIT raced the frame),
- * and silently misinterpreting the bytes would render garbage.
+ * 4-byte big-endian frame index, followed by raw pixel bytes.
  */
 export function parsePixelFrame(buffer: ArrayBuffer, cols: number, rows: number): DecodedPixelFrame {
-  const expected = 4 + cols * rows * 3;
-  if (buffer.byteLength !== expected) {
+  const expectedBgr = 4 + cols * rows * 3;
+  const expectedBgra = 4 + cols * rows * 4;
+  if (buffer.byteLength !== expectedBgr && buffer.byteLength !== expectedBgra) {
     throw new Error(
-      `parsePixelFrame: size mismatch (got ${buffer.byteLength} bytes, expected ${expected} for ${cols}x${rows})`,
+      `parsePixelFrame: size mismatch (got ${buffer.byteLength} bytes, expected ${expectedBgr} for ${cols}x${rows})`,
     );
   }
   const view = new DataView(buffer);
@@ -76,19 +74,18 @@ export function parsePixelFrame(buffer: ArrayBuffer, cols: number, rows: number)
 }
 
 /**
- * Expands packed BGR (3 bytes/pixel) to BGRA (4 bytes/pixel, alpha=255).
- * Required because WebCodecs' VideoFrame has no 3-byte-per-pixel format —
- * 'BGRX'/'BGRA' are the closest matches to the server's raw byte order.
+ * Expands packed BGR (3 bytes/pixel) to BGRA (4 bytes/pixel, alpha=255) using
+ * 32-bit words for optimal performance. If server emits BGRA directly, returns without copy.
  */
 export function bgrToBgra(bgr: Uint8Array, pixelCount: number): Uint8Array {
+  if (bgr.length === pixelCount * 4) {
+    return bgr;
+  }
   const out = new Uint8Array(pixelCount * 4);
+  const out32 = new Uint32Array(out.buffer);
   for (let i = 0; i < pixelCount; i++) {
     const s = i * 3;
-    const d = i * 4;
-    out[d] = bgr[s] ?? 0;
-    out[d + 1] = bgr[s + 1] ?? 0;
-    out[d + 2] = bgr[s + 2] ?? 0;
-    out[d + 3] = 255;
+    out32[i] = (bgr[s] ?? 0) | ((bgr[s + 1] ?? 0) << 8) | ((bgr[s + 2] ?? 0) << 16) | 0xff000000;
   }
   return out;
 }

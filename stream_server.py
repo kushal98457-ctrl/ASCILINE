@@ -17,19 +17,16 @@ from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from typing import Optional
 
 # Enable ANSI escape sequences on Windows early so startup messages are colored
-os.system("")
+if sys.platform == "win32":
+    try:
+        import colorama
+        colorama.just_fix_windows_console()
+    except Exception:
+        pass
 
 def handle_signal_interrupt(signum, frame):
-    """
-    Gracefully Handle Keyboard Interrupt (Ctrl + C)
-    
-    Keyword arguments:
-    signum: The signal number (e.g., SIGINT)
-    frame -- The current stack object frame (can be None) 
-    
-    Return: None
-    """
-    print("\n \033[33m[X] Startup Cancelled. Exiting ASCILINE...\033[0m\n",flush=True)
+    """Gracefully Handle Keyboard Interrupt (Ctrl + C)"""
+    print("\n \033[33m[X] Startup Cancelled. Exiting ASCILINE...\033[0m\n", flush=True)
     sys.exit(0)
 
 signal.signal(signal.SIGINT, handle_signal_interrupt)
@@ -47,10 +44,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, H
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
-import os
 
 from core.adaptive import AdaptiveController
-from core.frame_queue import FrameQueue, QueuedFrame
 from core.performance import PerformanceMonitor
 from urllib.parse import urlparse
 from websockets.exceptions import ConnectionClosed
@@ -407,12 +402,6 @@ def build_queue(args) -> list[dict]:
 # loop flag controls infinite playback.
 # ──────────────────────────────────────────────────────────
 
-@app.get("/")
-async def root():
-    """Serves the Frontend (HTML/JS/CSS) file to the client."""
-    return HTMLResponse(get_html_content())
-
-
 @app.get("/audio")
 async def audio_stream(v: Optional[int] = None, start: float = 0.0):
     """
@@ -508,7 +497,6 @@ _scrub_cache: dict = {}  # video_path -> {"meta": {...}, "jpeg": bytes} or None
 
 
 def _build_scrub_sprite(video_path: str, max_count: int = 64, cell_w: int = 160):
-    import math
     # Probe size + duration quickly (metadata only, no frame decoding).
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -801,7 +789,6 @@ async def websocket_endpoint(websocket: WebSocket):
             frame_buf = np.empty((rows, cols, 4), dtype=np.uint8) if render_mode > 1 else None
 
             import struct
-            import time
             start_time = asyncio.get_running_loop().time()
             bw_start_time = time.time()
             bw_bytes_sent = 0
@@ -834,15 +821,17 @@ async def websocket_endpoint(websocket: WebSocket):
             
             receive_task = asyncio.create_task(receive_commands())
 
-            raw_frame_num = 0
+            generation = 0
 
             # ── THREAD-OFFLOADED FRAME PRODUCER ──
             # Bundles ALL CPU work (decode + process + encode) into one
             # closure that runs in a thread pool, keeping the asyncio
             # event loop 100% free for I/O (WebSocket send) and timing.
-            def produce(pf, fi):
-                """Decode, process, encode one frame. Returns None on EOF.
-                pf = prev_frame, fi = frame_index."""
+            def produce(pf, fi, gen):
+                """Decode, process, encode one frame. Returns None on EOF or stale generation.
+                pf = prev_frame, fi = frame_index, gen = generation."""
+                if gen != generation:
+                    return None
                 for _ in range(skip_n - 1):
                     if not decoder.grab():
                         return None
@@ -851,12 +840,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 except StopIteration:
                     return None
 
+                if gen != generation:
+                    return None
+
                 if pixel_mode:
                     raw_sz = 4 + rows * cols * 3
                     struct.pack_into(">I", pixel_send_buf, 0, fi)
-                    pixel_send_buf[4:] = bgr_frame.tobytes()
+                    np.copyto(np.frombuffer(pixel_send_buf, dtype=np.uint8, offset=4), bgr_frame.reshape(-1))
                     buf = bytes(pixel_send_buf)
-                    return ('bytes', buf, pf, raw_sz, len(buf))
+                    return ('bytes', buf, pf, raw_sz, len(buf), gen)
                 else:
                     # ── APPLY SHARPNESS (float32 to avoid uint8 clamping artifacts) ──
                     if sharpness_kernel is not None:
@@ -876,7 +868,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         lines = [''.join(row) for row in char_matrix]
                         payload = f"{fi}\n" + '\n'.join(lines)
                         sz = len(payload.encode('utf-8'))
-                        return ('text', payload, pf, sz, sz)
+                        return ('text', payload, pf, sz, sz, gen)
                     else:
                         char_codes = char_byte_lut[indices]
                         rgb = bgr_frame[:, :, ::-1]
@@ -888,12 +880,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         if adaptive:
                             msg, npf = encode_frame(
                                 frame_buf.copy(), pf, fi, 3, tolerance)
-                            return ('bytes', msg, npf, raw_sz, len(msg))
+                            return ('bytes', msg, npf, raw_sz, len(msg), gen)
                         else:
                             struct.pack_into(">I", ascii_send_buf, 0, fi)
-                            ascii_send_buf[4:] = frame_buf.tobytes()
+                            np.copyto(np.frombuffer(ascii_send_buf, dtype=np.uint8, offset=4), frame_buf.reshape(-1))
                             buf = bytes(ascii_send_buf)
-                            return ('bytes', buf, pf, raw_sz, len(buf))
+                            return ('bytes', buf, pf, raw_sz, len(buf), gen)
 
             # ── BACKPRESSURE FRAME-DROP ──
             # Cheaply advance the source by one effective frame WITHOUT decoding,
@@ -932,8 +924,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         elif msg.get("type") == "seek":
                             target_sec = float(msg.get("time", 0))
                             await _loop.run_in_executor(None, decoder.seek, target_sec)
+                            actual_ms = decoder.cap.get(cv2.CAP_PROP_POS_MSEC)
+                            actual_sec = actual_ms / 1000.0 if actual_ms > 0 else target_sec
                             prev_frame = None
-                            frame_index = int(target_sec * effective_fps)
+                            frame_index = int(round(actual_sec * effective_fps))
                             start_time = _loop.time() - (frame_index * frame_t)
                             bw_start_time = time.time()
                             client_backlog = 0  # stale across a seek
@@ -952,6 +946,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                 consec_high_reports = 0
                         elif msg.get("type") == "reinit":
                             # Soft reload: Toggle pixel mode and send new INIT
+                            generation += 1
                             pixel_mode = bool(msg.get("pixel", pixel_mode))
                             
                             cols_override = entry.get("cols_override")
@@ -967,6 +962,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             decoder._skip_gray = pixel_mode
                             if render_mode > 1:
                                 frame_buf = np.empty((rows, cols, 4), dtype=np.uint8)
+                                ascii_send_buf = bytearray(4 + rows * cols * 4)
                             if pixel_mode:
                                 pixel_send_buf = bytearray(4 + rows * cols * 3)
                             
@@ -975,8 +971,10 @@ async def websocket_endpoint(websocket: WebSocket):
                             await websocket.send_text(f"INIT:{effective_fps}:{render_mode}:{cols}:{rows}:{int(pixel_mode)}:{queue_index}:{duration:.3f}:{target_sec}:{int(is_webcam)}")
                             
                             await _loop.run_in_executor(None, decoder.seek, target_sec)
+                            actual_ms = decoder.cap.get(cv2.CAP_PROP_POS_MSEC)
+                            actual_sec = actual_ms / 1000.0 if actual_ms > 0 else target_sec
                             prev_frame = None
-                            frame_index = int(target_sec * effective_fps)
+                            frame_index = int(round(actual_sec * effective_fps))
                             start_time = _loop.time() - (frame_index * frame_t)
                             bw_start_time = time.time()
                             client_backlog = 0
@@ -1076,17 +1074,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     # ALL CPU work in thread pool — event loop stays 100% free
                     perf_monitor.frame_started()
                     t_before = time.time()
+                    cur_gen = generation
                     result = await _loop.run_in_executor(
-                        None, produce, prev_frame, frame_index)
+                        None, produce, prev_frame, frame_index, cur_gen)
                     
                     if is_webcam and (time.time() - t_before) < 0.005:
                         # Safety net: Prevent 100% CPU runaway if OpenCV becomes non-blocking
                         await asyncio.sleep(0.01)
 
                     if result is None:
+                        if cur_gen != generation:
+                            continue
                         break
 
-                    send_type, data, prev_frame, raw_size, wire_size = result
+                    send_type, data, prev_frame, raw_size, wire_size, res_gen = result
+                    if res_gen != generation:
+                        continue
 
                     if send_type == 'text':
                         await websocket.send_text(data)
@@ -1206,8 +1209,8 @@ def print_status():
     print(f"\033[1;37m{'═'*55}\033[0m\n")
 
 
-def command_loop():
-    """Interactive command listener — runs in main thread alongside uvicorn."""
+def command_loop(server=None):
+    """Interactive command listener."""
     print(f" \033[90mType \033[36m/help\033[90m for available commands.\033[0m\n")
     while True:
         try:
@@ -1218,23 +1221,25 @@ def command_loop():
                 print_status()
             elif cmd in ('/quit', 'quit', 'exit'):
                 print("\n \033[33m[X] Shutting down ASCILINE...\033[0m\n")
-                os._exit(0)
+                if server is not None:
+                    server.should_exit = True
+                break
             elif cmd:
                 print(f" \033[90mUnknown command: '{cmd}'. Type \033[36m/help\033[90m for options.\033[0m")
         except EOFError:
             # No interactive stdin (Docker without TTY / piped input): keep serving.
-            threading.Event().wait()
+            break
         except KeyboardInterrupt:
             print("\n \033[33m[X] Shutting down ASCILINE...\033[0m\n")
-            os._exit(0)
+            if server is not None:
+                server.should_exit = True
+            break
 
 
 if __name__ == "__main__":
-    import sys
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
     import argparse
-    import threading
 
     try:
         __version__ = _pkg_version("asciline")
@@ -1443,21 +1448,20 @@ if __name__ == "__main__":
     print(f"\033[1;37m{'═'*55}\033[0m\n")
     print(f" \033[1;32m[+] Server live →\033[0m \033[4;36mhttp://localhost:{args.port}\033[0m\n")
 
-    # ── Run server in background thread, command loop in main thread ──
-    server_thread = threading.Thread(
-        target=uvicorn.run,
-        args=(app,),
-        kwargs={
-            "host": args.host,
-            "port": args.port,
-            "log_level": "warning",
-        },
-        daemon=True
-    )
-    server_thread.start()
-    
-    # Restore the default signal handler for the main thread so that 
-    # command_loop can catch KeyboardInterrupt and shut down cleanly.
+    # ── Run server on main thread with proper signal handling; REPL in worker thread ──
+    config = uvicorn.Config(app=app, host=args.host, port=args.port, log_level="warning")
+    server = uvicorn.Server(config)
+
+    def run_repl():
+        try:
+            command_loop(server)
+        except Exception:
+            pass
+
+    repl_thread = threading.Thread(target=run_repl, daemon=True)
+    repl_thread.start()
+
+    # Restore default signal handling so uvicorn can handle SIGINT/SIGTERM cleanly
     signal.signal(signal.SIGINT, signal.default_int_handler)
-    
-    command_loop()
+
+    server.run()
