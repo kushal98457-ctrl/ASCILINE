@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ ASCILINE
+# ⚡ ASCI
 ### High-Performance Real-Time Video-to-ASCII & Pixel Streaming Engine
 
 **Stream live video converted to ASCII glyphs and dense pixel matrices in real-time over adaptive binary WebSockets to a hardware-accelerated WebGPU & Canvas workstation.**
